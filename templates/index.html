@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Central de Monitoramento - Frotas Leves</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #eef1f5;
+            color: #1f2937;
+        }
+
+
+        /* =====================================================
+           CABEÇALHO
+        ===================================================== */
+
+        .cabecalho {
+            background: white;
+            border-radius: 14px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo-fazenda {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .cabecalho-conteudo {
+            flex: 1;
+        }
+
+        .cabecalho-titulo {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            color: #263445;
+        }
+
+        .cabecalho-resumo {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .resumo-item {
+            font-size: 13px;
+            color: #475569;
+            background: #f1f5f9;
+            padding: 7px 12px;
+            border-radius: 7px;
+        }
+
+        .resumo-item strong {
+            color: #263445;
+        }
+
+
+        /* =====================================================
+           FILTROS
+        ===================================================== */
+
+        .filtros {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .filtros-titulo {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .filtros-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .campo-filtro {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .campo-filtro label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .campo-filtro input,
+        .campo-filtro select {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .botoes-filtro {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button,
+        .botao-limpar {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        button {
+            background: #263445;
+            color: white;
+        }
+
+        .botao-limpar {
+            background: #e2e8f0;
+            color: #1f2937;
+        }
+
+
+
+        /* NAVEGAÇÃO ENTRE PAINÉIS */
+        .painel-nav { display:flex; gap:10px; flex-shrink:0; }
+        .painel-nav a { padding:11px 18px; border-radius:8px; text-decoration:none; font-size:13px; font-weight:bold; border:1px solid #cbd5e1; color:#475569; background:#f8fafc; transition:all .18s ease; }
+        .painel-nav a:hover { transform:translateY(-1px); box-shadow:0 6px 14px rgba(15,23,42,.10); }
+        .painel-nav a.ativo { background:#263445; color:white; border-color:#263445; }
+        .manutencao-titulo { margin:0 0 8px; font-size:22px; color:#263445; }
+        .manutencao-subtitulo { margin:0 0 20px; color:#64748b; font-size:14px; }
+        .card-manutencao { position:relative; overflow:hidden; min-height:125px; }
+        .card-manutencao::after { content:"🔧"; position:absolute; right:20px; top:50%; transform:translateY(-50%); font-size:42px; opacity:.16; }
+        .card-manutencao-vencida { background:#fde4e4 !important; border:1px solid #d32f2f; }
+        .card-manutencao-vencida .card-title, .card-manutencao-vencida .card-number { color:#a31515; }
+        .card-manutencao-critica { background:#ffeadb !important; border:1px solid #f28c28; }
+        .card-manutencao-critica .card-title, .card-manutencao-critica .card-number { color:#a94700; }
+        .card-manutencao-proxima { background:#fff8d6 !important; border:1px solid #e0b400; }
+        .card-manutencao-proxima .card-title, .card-manutencao-proxima .card-number { color:#7a6200; }
+        .card-manutencao-em-dia { background:#e8f5e9 !important; border:1px solid #4caf50; }
+        .card-manutencao-em-dia .card-title, .card-manutencao-em-dia .card-number { color:#1b5e20; }
+        .status { display:inline-block; padding:5px 9px; border-radius:999px; font-size:11px; font-weight:bold; }
+        .status-VENCIDA { background:#fde4e4; color:#a31515; }
+        .status-CRÍTICA { background:#ffeadb; color:#a94700; }
+        .status-PRÓXIMA { background:#fff8d6; color:#7a6200; }
+        .status-EM-DIA { background:#e8f5e9; color:#1b5e20; }
+        .status-SEM-DADO { background:#e2e8f0; color:#475569; }
+        @media (max-width:900px) { .cabecalho { flex-wrap:wrap; } .painel-nav { width:100%; } .painel-nav a { flex:1; text-align:center; } }
+
+        /* =====================================================
+           CARDS
+        ===================================================== */
+
+        .cards {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            min-width: 210px;
+            flex: 1;
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .card-number {
+            font-size: 30px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+
+        /* =====================================================
+           GRÁFICOS
+        ===================================================== */
+
+        .graficos-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grafico-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            width: 100%;
+        }
+
+        .grafico-container h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .grafico-container-full {
+            grid-column: 1 / -1;
+        }
+
+        .grafico-area {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        .grafico-area canvas {
+            cursor: pointer;
+        }
+
+
+        /* =====================================================
+           TABELA
+        ===================================================== */
+
+        h2 {
+            margin-top: 25px;
+        }
+
+        .tabela-container {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #263445;
+            color: white;
+            padding: 11px 8px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 9px 8px;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: #f1f5f9;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+
+        /* =====================================================
+           RESPONSIVO
+        ===================================================== */
+
+        @media (max-width: 900px) {
+
+            .graficos-grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+
+        @media (max-width: 700px) {
+
+            body {
+                padding: 12px;
+            }
+
+            .cabecalho {
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .logo-fazenda {
+                width: 55px;
+                height: 55px;
+            }
+
+            .cabecalho-titulo {
+                font-size: 20px;
+            }
+
+            .grafico-area {
+                height: 240px;
+            }
+
+        }
+
+    
+        /* CARDS CLICÁVEIS - FILTRO RÁPIDO POR GRAVIDADE */
+        .card-filtro {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+            user-select: none;
+        }
+
+        .card-filtro:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.03);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+        }
+
+        .card-filtro:active {
+            transform: translateY(0);
+        }
+
+        .card-filtro.card-ativo {
+            box-shadow: 0 0 0 3px rgba(32, 58, 95, 0.22), 0 10px 22px rgba(15, 23, 42, 0.16);
+        }
+
+    </style>
+
+
+
+<style id="cores-gravidade">
+.cards .card.card-gravidade-leve {
+    background-color: #e8f5e9 !important;
+    border: 1px solid #4caf50 !important;
+}
+.cards .card.card-gravidade-leve .card-title,
+.cards .card.card-gravidade-leve .card-number {
+    color: #1b5e20 !important;
+}
+
+.cards .card.card-gravidade-media {
+    background-color: #fff8d6 !important;
+    border: 1px solid #e0b400 !important;
+}
+.cards .card.card-gravidade-media .card-title,
+.cards .card.card-gravidade-media .card-number {
+    color: #7a6200 !important;
+}
+
+.cards .card.card-gravidade-grave {
+    background-color: #ffeadb !important;
+    border: 1px solid #f28c28 !important;
+}
+.cards .card.card-gravidade-grave .card-title,
+.cards .card.card-gravidade-grave .card-number {
+    color: #a94700 !important;
+}
+
+.cards .card.card-gravidade-gravissima {
+    background-color: #fde4e4 !important;
+    border: 1px solid #d32f2f !important;
+}
+.cards .card.card-gravidade-gravissima .card-title,
+.cards .card.card-gravidade-gravissima .card-number {
+    color: #a31515 !important;
+}
+</style>
+
+
+<style id="icones-cards-gravidade">
+.card-gravidade-leve,
+.card-gravidade-media,
+.card-gravidade-grave,
+.card-gravidade-gravissima {
+    position: relative;
+    overflow: hidden;
+}
+
+.card-gravidade-leve .card-icon,
+.card-gravidade-media .card-icon,
+.card-gravidade-grave .card-icon,
+.card-gravidade-gravissima .card-icon {
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 52px;
+    height: 52px;
+    opacity: 0.78;
+}
+
+.card-gravidade-leve .card-icon { color: #1F7A45; }
+.card-gravidade-media .card-icon { color: #B88900; }
+.card-gravidade-grave .card-icon { color: #B85F00; }
+.card-gravidade-gravissima .card-icon { color: #A61F1F; }
+
+.card-gravidade-leve .card-title,
+.card-gravidade-media .card-title,
+.card-gravidade-grave .card-title,
+.card-gravidade-gravissima .card-title,
+.card-gravidade-leve .card-number,
+.card-gravidade-media .card-number,
+.card-gravidade-grave .card-number,
+.card-gravidade-gravissima .card-number {
+    position: relative;
+    z-index: 1;
+}
+</style>
+
+</head>
+
+
+<body>
+
+
+    <!-- =====================================================
+         CABEÇALHO
+    ===================================================== -->
+
+    <div class="cabecalho">
+
+        <img
+            src="{{ url_for('static', filename='logo_fazenda.png') }}"
+            alt="Logo da Fazenda"
+            class="logo-fazenda"
+        >
+
+        <div class="cabecalho-conteudo">
+
+            <h1 class="cabecalho-titulo">
+                CENTRAL DE MONITORAMENTO — FROTAS LEVES
+            </h1>
+
+            <div class="cabecalho-resumo">
+
+                <div class="resumo-item">
+                    <strong>OCORRÊNCIAS:</strong>
+                    {{ total }}
+                </div>
+
+                <div class="resumo-item">
+                    <strong>CONDUTORES:</strong>
+                    {{ condutores }}
+                </div>
+
+                <div class="resumo-item">
+                    <strong>FROTAS:</strong>
+                    {{ frotas }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="painel-nav">
+            <a href="/" class="{% if painel != 'manutencao' %}ativo{% endif %}">📊 OCORRÊNCIAS</a>
+            <a href="/?painel=manutencao" class="{% if painel == 'manutencao' %}ativo{% endif %}">🔧 MANUTENÇÃO</a>
+        </div>
+    </div>
+
+    {% if painel == "manutencao" %}
+    <h2 class="manutencao-titulo">PAINEL DE MANUTENÇÃO PREVENTIVA</h2>
+    <p class="manutencao-subtitulo">Acompanhamento automático das próximas manutenções por quilometragem.</p>
+
+    <div class="cards">
+        <div class="card card-manutencao card-manutencao-vencida"><div class="card-title">MANUTENÇÕES VENCIDAS</div><div class="card-number">{{ manutencao.vencidas }}</div></div>
+        <div class="card card-manutencao card-manutencao-critica"><div class="card-title">CRÍTICAS • ATÉ 1.000 KM</div><div class="card-number">{{ manutencao.criticas }}</div></div>
+        <div class="card card-manutencao card-manutencao-proxima"><div class="card-title">PRÓXIMAS • ATÉ 5.000 KM</div><div class="card-number">{{ manutencao.proximas }}</div></div>
+        <div class="card card-manutencao card-manutencao-em-dia"><div class="card-title">EM DIA • ACIMA DE 5.000 KM</div><div class="card-number">{{ manutencao.em_dia }}</div></div>
+    </div>
+
+    <div class="graficos-grid">
+        <div class="grafico-container">
+            <h2>TOP 10 MANUTENÇÕES MAIS URGENTES</h2>
+            <div class="grafico-area"><canvas id="graficoManutencao"></canvas></div>
+        </div>
+        <div class="grafico-container">
+            <h2>RESUMO DA BASE</h2>
+            <div class="cards" style="margin-top:25px;">
+                <div class="card" style="min-width:150px;"><div class="card-title">REGISTROS</div><div class="card-number">{{ manutencao.total }}</div></div>
+                <div class="card" style="min-width:150px;"><div class="card-title">FROTAS</div><div class="card-number">{{ manutencao.frotas }}</div></div>
+            </div>
+            <p class="manutencao-subtitulo" style="margin-top:25px;">Base: {{ manutencao.arquivo }}<br>Aba: {{ manutencao.aba }}</p>
+        </div>
+    </div>
+
+    <h2>Próximas manutenções</h2>
+    <div class="tabela-container">
+        <table>
+            <thead><tr><th>Frota</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for indice, linha in manutencao.tabela.iterrows() %}
+                <tr>
+                    <td>{{ linha["Frota"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td>
+                    <td>{{ linha["Estado por quilometragem"] }}</td>
+                    <td><span class="status status-{{ linha["Status"].replace(" ", "-") }}">{{ linha["Status"] }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="footer">Central de Monitoramento - Frotas Leves • Painel de Manutenção</div>
+
+    <script>
+        Chart.register({
+            id:"valueLabelsManutencao",
+            afterDatasetsDraw(chart) {
+                const {ctx}=chart; ctx.save(); ctx.fillStyle="#263445"; ctx.font="bold 12px Arial"; ctx.textAlign="center"; ctx.textBaseline="bottom";
+                chart.data.datasets.forEach((dataset,datasetIndex)=>{
+                    const meta=chart.getDatasetMeta(datasetIndex);
+                    meta.data.forEach((bar,index)=>{
+                        const valor=dataset.data[index];
+                        if(valor!==null && valor!==undefined && Number(valor)>0)
+                            ctx.fillText(Number(valor).toLocaleString("pt-BR")+" km",bar.x,bar.y-6);
+                    });
+                }); ctx.restore();
+            }
+        });
+        new Chart(document.getElementById("graficoManutencao"),{
+            type:"bar",
+            data:{
+                labels:{{ manutencao.grafico_labels | tojson }},
+                datasets:[{
+                    label:"KM para manutenção",
+                    data:{{ manutencao.grafico_valores | tojson }},
+                    backgroundColor:{{ manutencao.grafico_cores | tojson }},
+                    borderColor:{{ manutencao.grafico_cores | tojson }},
+                    borderWidth:1,borderRadius:5,borderSkipped:false
+                }]
+            },
+            options:{
+                responsive:true,maintainAspectRatio:false,
+                plugins:{legend:{display:false},tooltip:{callbacks:{label:context=>context.parsed.y.toLocaleString("pt-BR")+" km"}}},
+                scales:{
+                    x:{grid:{display:false},ticks:{color:"#475569",font:{size:11,weight:"600"}}},
+                    y:{beginAtZero:true,grid:{color:"rgba(100,116,139,.14)"},border:{display:false},
+                       ticks:{color:"#64748b",callback:value=>Number(value).toLocaleString("pt-BR")+" km"}}
+                }
+            }
+        });
+    </script>
+
+    {% else %}
+    <!-- =====================================================
+         FILTROS
+    ===================================================== -->
+
+    <form method="GET" class="filtros" id="formFiltros">
+
+        <div class="filtros-titulo">
+            FILTROS DE ANÁLISE
+        </div>
+
+        <div class="filtros-grid">
+
+
+            <div class="campo-filtro">
+
+                <label>Data inicial</label>
+
+                <input
+                    type="date"
+                    name="data_inicio"
+                    value="{{ filtros.data_inicio }}"
+                >
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Data final</label>
+
+                <input
+                    type="date"
+                    name="data_fim"
+                    value="{{ filtros.data_fim }}"
+                >
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Frota</label>
+
+                <select name="frota">
+
+                    <option value="">TODAS</option>
+
+                    {% for item in opcoes_frota %}
+
+                    <option
+                        value="{{ item }}"
+                        {% if filtros.frota == item %}selected{% endif %}
+                    >
+                        {{ item }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Condutor</label>
+
+                <select name="condutor">
+
+                    <option value="">TODOS</option>
+
+                    {% for item in opcoes_condutor %}
+
+                    <option
+                        value="{{ item }}"
+                        {% if filtros.condutor == item %}selected{% endif %}
+                    >
+                        {{ item }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Cerca</label>
+
+                <select name="cerca">
+
+                    <option value="">TODAS</option>
+
+                    {% for item in opcoes_cerca %}
+
+                    <option
+                        value="{{ item }}"
+                        {% if filtros.cerca == item %}selected{% endif %}
+                    >
+                        {{ item }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Gravidade</label>
+
+                <select name="gravidade">
+
+                    <option value="">TODAS</option>
+
+                    {% for item in opcoes_gravidade %}
+
+                    <option
+                        value="{{ item }}"
+                        {% if filtros.gravidade == item %}selected{% endif %}
+                    >
+                        {{ item }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="campo-filtro">
+
+                <label>Faixa de Excesso</label>
+
+                <select name="faixa_excesso">
+
+                    <option value="">TODAS</option>
+
+                    <option
+                        value="1 a 5 km/h"
+                        {% if filtros.faixa_excesso == "1 a 5 km/h" %}selected{% endif %}
+                    >
+                        1 a 5 km/h
+                    </option>
+
+                    <option
+                        value="6 a 10 km/h"
+                        {% if filtros.faixa_excesso == "6 a 10 km/h" %}selected{% endif %}
+                    >
+                        6 a 10 km/h
+                    </option>
+
+                    <option
+                        value="11 a 20 km/h"
+                        {% if filtros.faixa_excesso == "11 a 20 km/h" %}selected{% endif %}
+                    >
+                        11 a 20 km/h
+                    </option>
+
+                    <option
+                        value="Acima de 20 km/h"
+                        {% if filtros.faixa_excesso == "Acima de 20 km/h" %}selected{% endif %}
+                    >
+                        Acima de 20 km/h
+                    </option>
+
+                </select>
+
+            </div>
+
+
+        </div>
+
+
+        <div class="botoes-filtro">
+
+            <button type="submit">
+                APLICAR FILTROS
+            </button>
+
+            <a href="/" class="botao-limpar">
+                LIMPAR FILTROS
+            </a>
+
+        </div>
+
+    </form>
+
+
+    <!-- =====================================================
+         CARDS
+    ===================================================== -->
+
+    <div class="cards">
+
+
+        <div class="card card-gravidade-leve card-filtro {% if filtros.gravidade == "LEVE" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'LEVE')" title="Filtrar ocorrências leves">
+
+            <div class="card-title">
+                Ocorrências Leves
+            </div>
+
+            <div class="card-number">
+                {{ leves }}
+            
+<svg class="card-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 2 20 5v6c0 5-3.4 9.5-8 11-4.6-1.5-8-6-8-11V5l8-3Z" stroke="currentColor" stroke-width="1.8"/>
+  <path d="m8.5 12 2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></div>
+
+        </div>
+
+
+        <div class="card card-gravidade-media card-filtro {% if filtros.gravidade == "MÉDIA" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'MÉDIA')" title="Filtrar ocorrências médias">
+
+            <div class="card-title">
+                Ocorrências Médias
+            </div>
+
+            <div class="card-number">
+                {{ medias }}
+            
+<svg class="card-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 3 22 20H2L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="12" cy="17" r="1" fill="currentColor"/>
+</svg></div>
+
+        </div>
+
+
+        <div class="card card-gravidade-grave card-filtro {% if filtros.gravidade == "GRAVE" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'GRAVE')" title="Filtrar ocorrências graves">
+
+            <div class="card-title">
+                Ocorrências Graves
+            </div>
+
+            <div class="card-number">
+                {{ graves }}
+            
+<svg class="card-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 2 20 5v6c0 5-3.4 9.5-8 11-4.6-1.5-8-6-8-11V5l8-3Z" stroke="currentColor" stroke-width="1.8"/>
+  <path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="12" cy="16.5" r="1" fill="currentColor"/>
+</svg></div>
+
+        </div>
+
+
+        <div class="card card-gravidade-gravissima card-filtro {% if filtros.gravidade == "GRAVÍSSIMA" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'GRAVÍSSIMA')" title="Filtrar ocorrências gravíssimas">
+
+            <div class="card-title">
+                Ocorrências Gravíssimas
+            </div>
+
+            <div class="card-number">
+                {{ gravissimas }}
+            
+<svg class="card-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M7 18h10l2-5-2-5H7l-2 5 2 5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M9 8V5m6 3V5M8 18v2m8-2v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M9 13h6M12 10v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+</svg></div>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         GRÁFICOS
+    ===================================================== -->
+
+    <div class="graficos-grid">
+
+
+        <div class="grafico-container">
+
+            <h2>Ocorrências por Condutor</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoCondutores"></canvas>
+            </div>
+
+        </div>
+
+
+        <div class="grafico-container">
+
+            <h2>TOP 10 FROTAS COM MAIS OCORRÊNCIAS</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoFrotas"></canvas>
+            </div>
+
+        </div>
+
+
+        <div class="grafico-container">
+
+            <h2>Ocorrências por Gravidade</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoGravidade"></canvas>
+            </div>
+
+        </div>
+
+
+        <div class="grafico-container">
+
+            <h2>Ocorrências por Faixa de Excesso</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoExcesso"></canvas>
+            </div>
+
+        </div>
+
+
+        <div class="grafico-container">
+
+            <h2>OCORRÊNCIAS POR HORÁRIO</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoHorario"></canvas>
+            </div>
+
+        </div>
+
+
+        <div class="grafico-container">
+
+            <h2>HORÁRIO × GRAVIDADE</h2>
+
+            <div class="grafico-area">
+                <canvas id="graficoHorarioGravidade"></canvas>
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         TABELA
+    ===================================================== -->
+
+    <h2>Ocorrências encontradas</h2>
+
+
+    <div class="tabela-container">
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Data</th>
+                    <th>Hora</th>
+                    <th>Driver</th>
+                    <th>Frota</th>
+                    <th>Velocidade Atual</th>
+                    <th>Velocidade Limite</th>
+                    <th>Excesso</th>
+                    <th>Cerca</th>
+                    <th>Gravidade</th>
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% for indice, linha in tabela.iterrows() %}
+
+                <tr>
+                    <td>{{ linha["Data"] }}</td>
+                    <td>{{ linha["Hora"] }}</td>
+                    <td>{{ linha["Driver"] }}</td>
+                    <td>{{ linha["Frota"] }}</td>
+                    <td>{{ linha["Velocidade Atual"] }}</td>
+                    <td>{{ linha["Velocidade Limite"] }}</td>
+                    <td>{{ linha["Excesso"] }}</td>
+                    <td>{{ linha["Cerca"] }}</td>
+                    <td>{{ linha["Gravidade"] }}</td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <div class="footer">
+        Central de Monitoramento - Frotas Leves
+    </div>
+
+
+    {% endif %}
+
+    {% if painel != "manutencao" %}
+    <!-- =====================================================
+         JAVASCRIPT
+    ===================================================== -->
+
+    <script>
+
+
+
+        Chart.register({
+            id: "valueLabels",
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                ctx.save();
+                ctx.fillStyle = "#263445";
+                ctx.font = "bold 12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    meta.data.forEach((bar, index) => {
+                        const valor = dataset.data[index];
+                        if (valor !== null && valor !== undefined && Number(valor) > 0) {
+                            ctx.fillText(
+                                Number(valor).toLocaleString("pt-BR"),
+                                bar.x,
+                                bar.y - 6
+                            );
+                        }
+                    });
+                });
+
+                ctx.restore();
+            }
+        });
+
+        /*
+        =====================================================
+        FUNÇÃO PARA APLICAR FILTROS PELOS GRÁFICOS
+        =====================================================
+        */
+
+        function aplicarFiltro(campo, valor) {
+
+            const url = new URL(window.location.href);
+
+            if (url.searchParams.get(campo) === valor) {
+
+                url.searchParams.delete(campo);
+
+            } else {
+
+                url.searchParams.set(campo, valor);
+
+            }
+
+            window.location.href = url.toString();
+
+        }
+
+
+        /* =====================================================
+           CONDUTORES
+        ===================================================== */
+
+        const labelsCondutores =
+            {{ grafico_condutores_labels | tojson }};
+
+        const valoresCondutores =
+            {{ grafico_condutores_valores | tojson }};
+
+
+        new Chart(
+
+            document.getElementById("graficoCondutores"),
+
+            {
+                type: "bar",
+
+                data: {
+
+                    labels: labelsCondutores,
+
+                    datasets: [{
+
+                        label: "Quantidade de ocorrências",
+
+                        data: valoresCondutores,
+
+                        backgroundColor: "#2F6B52",
+                        borderColor: "#24543F",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    onClick: function(event, elements) {
+
+                        if (elements.length > 0) {
+
+                            const indice = elements[0].index;
+
+                            aplicarFiltro(
+                                "condutor",
+                                labelsCondutores[indice]
+                            );
+
+                        }
+
+                    },
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        }
+
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+        );
+
+
+        /* =====================================================
+           FROTAS
+        ===================================================== */
+
+        const labelsFrotas =
+            {{ grafico_frotas_labels | tojson }};
+
+        const valoresFrotas =
+            {{ grafico_frotas_valores | tojson }};
+
+
+        new Chart(
+
+            document.getElementById("graficoFrotas"),
+
+            {
+                type: "bar",
+
+                data: {
+
+                    labels: labelsFrotas,
+
+                    datasets: [{
+
+                        label: "Quantidade de ocorrências",
+
+                        data: valoresFrotas,
+
+                        backgroundColor: "#3B5678",
+                        borderColor: "#2D425C",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    onClick: function(event, elements) {
+
+                        if (elements.length > 0) {
+
+                            const indice = elements[0].index;
+
+                            aplicarFiltro(
+                                "frota",
+                                labelsFrotas[indice]
+                            );
+
+                        }
+
+                    },
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        }
+
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+        );
+
+
+        /* =====================================================
+           GRAVIDADE
+        ===================================================== */
+
+        const labelsGravidade =
+            {{ grafico_gravidade_labels | tojson }};
+
+        const valoresGravidade =
+            {{ grafico_gravidade_valores | tojson }};
+
+
+        new Chart(
+
+            document.getElementById("graficoGravidade"),
+
+            {
+                type: "bar",
+
+                data: {
+
+                    labels: labelsGravidade,
+
+                    datasets: [{
+
+                        label: "Quantidade de ocorrências",
+
+                        data: valoresGravidade,
+
+                        backgroundColor: ["#1F7A45", "#E0AA16", "#D97706", "#C62828"],
+                        borderColor: ["#176236", "#B88900", "#B85F00", "#9F1D1D"],
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    onClick: function(event, elements) {
+
+                        if (elements.length > 0) {
+
+                            const indice = elements[0].index;
+
+                            aplicarFiltro(
+                                "gravidade",
+                                labelsGravidade[indice]
+                            );
+
+                        }
+
+                    },
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        }
+
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+        );
+
+
+        /* =====================================================
+           FAIXA DE EXCESSO
+        ===================================================== */
+
+        const labelsExcesso =
+            {{ grafico_excesso_labels | tojson }};
+
+        const valoresExcesso =
+            {{ grafico_excesso_valores | tojson }};
+
+
+        new Chart(
+
+            document.getElementById("graficoExcesso"),
+
+            {
+                type: "bar",
+
+                data: {
+
+                    labels: labelsExcesso,
+
+                    datasets: [{
+
+                        label: "Quantidade de ocorrências",
+
+                        data: valoresExcesso,
+
+                        backgroundColor: ["#2F7D4A", "#D9A300", "#D97706", "#C0392B"],
+                        borderColor: ["#25663C", "#B88900", "#B85F05", "#9F2F24"],
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    onClick: function(event, elements) {
+
+                        if (elements.length > 0) {
+
+                            const indice = elements[0].index;
+
+                            aplicarFiltro(
+                                "faixa_excesso",
+                                labelsExcesso[indice]
+                            );
+
+                        }
+
+                    },
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        }
+
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+        );
+
+
+        /* =====================================================
+           OCORRÊNCIAS POR HORÁRIO
+        ===================================================== */
+
+        const labelsHorario =
+            {{ grafico_horario_labels | tojson }};
+
+        const valoresHorario =
+            {{ grafico_horario_valores | tojson }};
+
+        const maxHorario = Math.max(...valoresHorario, 0);
+
+        new Chart(
+            document.getElementById("graficoHorario"),
+            {
+                type: "bar",
+
+                data: {
+                    labels: labelsHorario,
+
+                    datasets: [{
+                        label: "Quantidade de ocorrências",
+                        data: valoresHorario,
+                        backgroundColor: valoresHorario.map(valor =>
+                            valor === maxHorario && valor > 0
+                                ? "#C62828"
+                                : "#355A7C"
+                        ),
+                        borderColor: valoresHorario.map(valor =>
+                            valor === maxHorario && valor > 0
+                                ? "#9F1D1D"
+                                : "#294A68"
+                        ),
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const indice = elements[0].index;
+                            aplicarFiltro(
+                                "hora",
+                                labelsHorario[indice]
+                            );
+                        }
+                    },
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const quantidade = context.parsed.y || 0;
+                                    return `${quantidade} ocorrência${quantidade === 1 ? "" : "s"}`;
+                                }
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+
+        /* =====================================================
+           HORÁRIO × GRAVIDADE
+        ===================================================== */
+
+        const horarioGravidadeLeve =
+            {{ grafico_hora_gravidade_leve | tojson }};
+
+        const horarioGravidadeMedia =
+            {{ grafico_hora_gravidade_media | tojson }};
+
+        const horarioGravidadeGrave =
+            {{ grafico_hora_gravidade_grave | tojson }};
+
+        const horarioGravidadeGravissima =
+            {{ grafico_hora_gravidade_gravissima | tojson }};
+
+        new Chart(
+            document.getElementById("graficoHorarioGravidade"),
+            {
+                type: "bar",
+
+                data: {
+                    labels: labelsHorario,
+
+                    datasets: [
+                        {
+                            label: "LEVE",
+                            data: horarioGravidadeLeve,
+                            backgroundColor: "#1F7A45",
+                            borderColor: "#176236",
+                            borderWidth: 1,
+                            borderRadius: 3,
+                            borderSkipped: false
+                        },
+                        {
+                            label: "MÉDIA",
+                            data: horarioGravidadeMedia,
+                            backgroundColor: "#E0AA16",
+                            borderColor: "#B88900",
+                            borderWidth: 1,
+                            borderRadius: 3,
+                            borderSkipped: false
+                        },
+                        {
+                            label: "GRAVE",
+                            data: horarioGravidadeGrave,
+                            backgroundColor: "#D97706",
+                            borderColor: "#B85F00",
+                            borderWidth: 1,
+                            borderRadius: 3,
+                            borderSkipped: false
+                        },
+                        {
+                            label: "GRAVÍSSIMA",
+                            data: horarioGravidadeGravissima,
+                            backgroundColor: "#C62828",
+                            borderColor: "#9F1D1D",
+                            borderWidth: 1,
+                            borderRadius: 3,
+                            borderSkipped: false
+                        }
+                    ]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: "top",
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 10,
+                                color: "#475569",
+                                font: {
+                                    size: 11,
+                                    weight: "600"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const quantidade = context.parsed.y || 0;
+                                    return `${context.dataset.label}: ${quantidade} ocorrência${quantidade === 1 ? "" : "s"}`;
+                                }
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            stacked: false,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                font: {
+                                    size: 10,
+                                    weight: "600"
+                                },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(100, 116, 139, 0.14)"
+                            },
+                            border: {
+                                display: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: "#64748b",
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+
+    </script>
+    {% endif %}
+
+
+</body>
+
+</html>
