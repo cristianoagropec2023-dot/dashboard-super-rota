@@ -504,16 +504,24 @@
     <h2 class="manutencao-titulo">PAINEL DE MANUTENÇÃO PREVENTIVA</h2>
     <p class="manutencao-subtitulo">Acompanhamento automático das próximas manutenções por quilometragem.</p>
 
+    <div class="painel-nav" style="justify-content:center; margin:18px 0 28px;">
+        <a href="/?painel=manutencao&categoria=geral" class="{% if manutencao.categoria == 'geral' %}ativo{% endif %}">🔧 GERAL</a>
+        <a href="/?painel=manutencao&categoria=oleo" class="{% if manutencao.categoria == 'oleo' %}ativo{% endif %}">🛢️ TROCA DE ÓLEO</a>
+        <a href="/?painel=manutencao&categoria=pneus" class="{% if manutencao.categoria == 'pneus' %}ativo{% endif %}">🛞 PNEUS</a>
+    </div>
+
+    <h2 style="margin-bottom:18px;">VISÃO: {{ manutencao.categoria_nome }}</h2>
+
     <div class="cards">
         <div class="card card-manutencao card-manutencao-vencida"><div class="card-title">MANUTENÇÕES VENCIDAS</div><div class="card-number">{{ manutencao.vencidas }}</div></div>
-        <div class="card card-manutencao card-manutencao-critica"><div class="card-title">CRÍTICAS • ATÉ 1.000 KM</div><div class="card-number">{{ manutencao.criticas }}</div></div>
-        <div class="card card-manutencao card-manutencao-proxima"><div class="card-title">PRÓXIMAS • ATÉ 5.000 KM</div><div class="card-number">{{ manutencao.proximas }}</div></div>
-        <div class="card card-manutencao card-manutencao-em-dia"><div class="card-title">EM DIA • ACIMA DE 5.000 KM</div><div class="card-number">{{ manutencao.em_dia }}</div></div>
+        <div class="card card-manutencao card-manutencao-critica"><div class="card-title">MANUTENÇÕES CRÍTICAS</div><div class="card-number">{{ manutencao.criticas }}</div></div>
+        <div class="card card-manutencao card-manutencao-proxima"><div class="card-title">PRÓXIMAS MANUTENÇÕES</div><div class="card-number">{{ manutencao.proximas }}</div></div>
+        <div class="card card-manutencao card-manutencao-em-dia"><div class="card-title">MANUTENÇÕES EM DIA</div><div class="card-number">{{ manutencao.em_dia }}</div></div>
     </div>
 
     <div class="graficos-grid">
         <div class="grafico-container">
-            <h2>TOP 10 MANUTENÇÕES MAIS URGENTES</h2>
+            <h2>TOP 10 MAIS URGENTES • {{ manutencao.categoria_nome }}</h2>
             <div class="grafico-area"><canvas id="graficoManutencao"></canvas></div>
         </div>
         <div class="grafico-container">
@@ -526,7 +534,7 @@
         </div>
     </div>
 
-    <h2>Próximas manutenções</h2>
+    <h2>Próximas manutenções • {{ manutencao.categoria_nome }}</h2>
     <div class="tabela-container">
         <table>
             <thead><tr><th>Frota</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
@@ -1084,8 +1092,8 @@
 
                         data: valoresCondutores,
 
-                        backgroundColor: "#2F6B52",
-                        borderColor: "#24543F",
+                        backgroundColor: "#1F6B45",
+                        borderColor: "#155235",
                         borderWidth: 1,
                         borderRadius: 4,
                         borderSkipped: false
@@ -1189,8 +1197,8 @@
 
                         data: valoresFrotas,
 
-                        backgroundColor: "#3B5678",
-                        borderColor: "#2D425C",
+                        backgroundColor: "#203A5F",
+                        borderColor: "#162B47",
                         borderWidth: 1,
                         borderRadius: 4,
                         borderSkipped: false
@@ -1399,8 +1407,8 @@
 
                         data: valoresExcesso,
 
-                        backgroundColor: ["#2F7D4A", "#D9A300", "#D97706", "#C0392B"],
-                        borderColor: ["#25663C", "#B88900", "#B85F05", "#9F2F24"],
+                        backgroundColor: ["#6B8EAD", "#4E7090", "#355A7C", "#203A5F"],
+                        borderColor: ["#587A98", "#3D607E", "#294A68", "#162B47"],
                         borderWidth: 1,
                         borderRadius: 4,
                         borderSkipped: false

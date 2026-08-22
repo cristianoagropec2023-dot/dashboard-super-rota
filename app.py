@@ -1,24 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request
 import pandas as pd
 import os
 import glob
 import re
-from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-antes-da-publicacao")
-
-USUARIO_DASHBOARD = os.environ.get("DASHBOARD_USER", "admin")
-SENHA_DASHBOARD = os.environ.get("DASHBOARD_PASSWORD", "123456")
-
-def login_obrigatorio(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not session.get("autenticado"):
-            return redirect(url_for("login"))
-        return func(*args, **kwargs)
-    return wrapper
-
 
 
 # ============================================================
@@ -693,38 +679,10 @@ def dados_dashboard_manutencao(categoria="geral"):
 
 
 # ============================================================
-# LOGIN
-# ============================================================
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if session.get("autenticado"):
-        return redirect(url_for("index"))
-
-    if request.method == "POST":
-        usuario = request.form.get("usuario", "").strip()
-        senha = request.form.get("senha", "")
-        if usuario == USUARIO_DASHBOARD and senha == SENHA_DASHBOARD:
-            session["autenticado"] = True
-            session["usuario"] = usuario
-            return redirect(url_for("index"))
-        flash("Usuário ou senha inválidos.", "erro")
-
-    return render_template("login.html")
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-
-# ============================================================
 # ROTA PRINCIPAL
 # ============================================================
 
 @app.route("/")
-@login_obrigatorio
 def index():
 
     try:
