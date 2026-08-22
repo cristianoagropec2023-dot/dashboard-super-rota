@@ -1,10 +1,25 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session, redirect, url_for
 import pandas as pd
 import os
 import glob
 import re
 
 app = Flask(__name__)
+
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "troque-esta-chave-por-uma-chave-segura-no-render"
+)
+
+USUARIO_LOGIN = os.environ.get(
+    "USUARIO_LOGIN",
+    "FNP-ADMIN"
+)
+
+SENHA_LOGIN = os.environ.get(
+    "SENHA_LOGIN",
+    "R0ta!Frota#2026@Segura"
+)
 
 
 # ============================================================
@@ -679,11 +694,46 @@ def dados_dashboard_manutencao(categoria="geral"):
 
 
 # ============================================================
+# LOGIN
+# ============================================================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    erro = ""
+
+    if request.method == "POST":
+        usuario = request.form.get("usuario", "").strip()
+        senha = request.form.get("senha", "")
+
+        if usuario == USUARIO_LOGIN and senha == SENHA_LOGIN:
+            session["autenticado"] = True
+
+            proxima_url = request.args.get("next")
+            if proxima_url:
+                return redirect(proxima_url)
+
+            return redirect(url_for("index"))
+
+        erro = "Usuário ou senha incorretos."
+
+    return render_template("login.html", erro=erro)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# ============================================================
 # ROTA PRINCIPAL
 # ============================================================
 
 @app.route("/")
 def index():
+
+    if not session.get("autenticado"):
+        return redirect(url_for("login", next=request.url))
 
     try:
 
