@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import glob
 import re
+import json
 
 import io
 from flask import send_file
@@ -518,6 +519,98 @@ def classificar_status_manutencao(estado, km):
     return "EM DIA"
 
 
+FROTAS_MOTOS = {"FNP-0186", "FNP-0372"}
+
+
+def classificar_status_moto(km):
+    """Classificação específica das motos: troca de óleo a cada 1.000 km."""
+    if km is None or pd.isna(km):
+        return "SEM DADO"
+    if km <= 0:
+        return "VENCIDA"
+    if km <= 100:
+        return "CRÍTICA"
+    if km <= 300:
+        return "PRÓXIMA"
+    return "EM DIA"
+
+
+def dados_dashboard_motos(status_filtro=""):
+    resultado = processar_manutencao()
+    dados = resultado["dados"].copy()
+
+    dados = dados[
+        dados["Frota"].astype(str).str.upper().isin(FROTAS_MOTOS)
+    ].copy()
+
+    dados["Status"] = dados["KM"].apply(classificar_status_moto)
+
+    ordem_status = {"VENCIDA": 0, "CRÍTICA": 1, "PRÓXIMA": 2, "EM DIA": 3, "SEM DADO": 4}
+    dados["OrdemStatus"] = dados["Status"].map(ordem_status).fillna(99).astype(int)
+    dados = dados.sort_values(
+        by=["OrdemStatus", "KM", "Frota"],
+        ascending=[True, True, True],
+        na_position="last"
+    ).reset_index(drop=True)
+
+    vencidas = int((dados["Status"] == "VENCIDA").sum())
+    criticas = int((dados["Status"] == "CRÍTICA").sum())
+    proximas = int((dados["Status"] == "PRÓXIMA").sum())
+    em_dia = int((dados["Status"] == "EM DIA").sum())
+
+    status_filtro = str(status_filtro or "").strip().upper()
+    if status_filtro not in {"VENCIDA", "CRÍTICA", "PRÓXIMA", "EM DIA"}:
+        status_filtro = ""
+
+    dados_filtrados = dados[dados["Status"] == status_filtro].copy() if status_filtro else dados.copy()
+    ranking = dados_filtrados.head(10).copy()
+
+    cores = {
+        "VENCIDA": "#C62828",
+        "CRÍTICA": "#D97706",
+        "PRÓXIMA": "#E0AA16",
+        "EM DIA": "#1F7A45",
+        "SEM DADO": "#64748B"
+    }
+
+    grafico_valores = []
+    for _, linha in ranking.iterrows():
+        valor = linha["KM"]
+        if pd.isna(valor):
+            grafico_valores.append(0)
+        elif linha["Status"] == "VENCIDA":
+            grafico_valores.append(abs(int(valor)))
+        else:
+            grafico_valores.append(int(valor))
+
+    return {
+        "arquivo": str(resultado["arquivo"]),
+        "aba": str(resultado["aba"]),
+        "status_filtro": status_filtro,
+        "status_nome": status_filtro if status_filtro else "TODAS",
+        "vencidas": vencidas,
+        "criticas": criticas,
+        "proximas": proximas,
+        "em_dia": em_dia,
+        "total": int(len(dados_filtrados)),
+        "frotas": int(dados_filtrados["Frota"].nunique()) if not dados_filtrados.empty else 0,
+        "grafico_labels": [str(x) for x in ranking["Frota"].tolist()],
+        "grafico_valores": [int(x) for x in grafico_valores],
+        "grafico_cores": [str(cores.get(status, "#64748B")) for status in ranking["Status"].tolist()],
+        # JSON pronto para o template: evita que o Jinja tente serializar Undefined.
+        "grafico_labels_json": json.dumps([str(x) for x in ranking["Frota"].tolist()], ensure_ascii=False),
+        "grafico_valores_json": json.dumps([int(x) for x in grafico_valores]),
+        "grafico_cores_json": json.dumps([str(cores.get(status, "#64748B")) for status in ranking["Status"].tolist()]),
+        "grafico_label_json": json.dumps(
+            "KM vencidos" if status_filtro == "VENCIDA" else "KM para troca de óleo",
+            ensure_ascii=False
+        ),
+        "titulo_grafico": (f"TOP 10 • {status_filtro} • MOTOS" if status_filtro else "TOP 10 MAIS URGENTES • MOTOS"),
+        "titulo_tabela": (f"MOTOS {status_filtro}" if status_filtro else "TROCAS DE ÓLEO • MOTOS"),
+        "tabela": dados_filtrados[["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]].copy()
+    }
+
+
 def processar_manutencao():
     caminho_excel = localizar_excel_manutencao()
     nome_arquivo = os.path.basename(caminho_excel)
@@ -603,6 +696,11 @@ def processar_manutencao():
 def dados_dashboard_manutencao(categoria="geral", status_filtro=""):
     resultado = processar_manutencao()
     dados_base = resultado["dados"].copy()
+
+    # As motos possuem painel e regra própria de troca de óleo.
+    dados_base = dados_base[
+        ~dados_base["Frota"].astype(str).str.upper().isin(FROTAS_MOTOS)
+    ].copy()
 
     # ========================================================
     # FILTRO POR CATEGORIA
@@ -787,6 +885,15 @@ def exportar_ocorrencias():
     )
 
 
+@app.route("/exportar/motos")
+def exportar_motos():
+    status_filtro = request.args.get("status", "").strip().upper()
+    resultado = dados_dashboard_motos(status_filtro=status_filtro)
+    colunas = ["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
+    dados = resultado["tabela"].copy()
+    return exportar_excel(dados, "troca_oleo_motos_dashboard.xlsx", colunas)
+
+
 @app.route("/exportar/manutencao")
 def exportar_manutencao():
     categoria = request.args.get("categoria", "geral").strip().lower()
@@ -815,6 +922,18 @@ def index():
 
         painel = request.args.get("painel", "ocorrencias").strip().lower()
 
+        if painel == "motos":
+            status_filtro = request.args.get("status", "").strip().upper()
+            motos = dados_dashboard_motos(status_filtro=status_filtro)
+            return render_template(
+                "index.html",
+                painel="motos",
+                motos=motos,
+                total=0,
+                condutores=0,
+                frotas=0
+            )
+
         if painel == "manutencao":
             categoria = request.args.get("categoria", "geral").strip().lower()
             status_filtro = request.args.get("status", "").strip().upper()
@@ -827,7 +946,10 @@ def index():
             return render_template(
                 "index.html",
                 painel="manutencao",
-                manutencao=manutencao
+                manutencao=manutencao,
+                total=0,
+                condutores=0,
+                frotas=0
             )
 
         resultado = processar_dados()
@@ -1348,13 +1470,9 @@ def index():
         )
 
     except Exception as erro:
-
-        return (
-            "<h1>CENTRAL DE MONITORAMENTO - FROTAS LEVES</h1>"
-            "<h2>Erro ao carregar dados</h2>"
-            f"<p>Erro: {erro}</p>"
-            f"<p><b>Pasta de dados:</b> {PASTA_DADOS}</p>"
-        )
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 # ============================================================
