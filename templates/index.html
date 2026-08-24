@@ -570,8 +570,8 @@
 
     <div class="painel-nav" style="justify-content:center; margin:18px 0 28px;">
         <a href="/?painel=manutencao&categoria=geral">🔧 GERAL</a>
-        <a href="/?painel=manutencao&categoria=oleo">🛢️ TROCA DE ÓLEO</a>
-        <a href="/?painel=manutencao&categoria=pneus">🛞 PNEUS</a>
+        <a href="/?painel=manutencao&categoria=oleo">🛢️ TROCA DE ÓLEO VEÍCULOS</a>
+        <a href="/?painel=manutencao&categoria=pneus">🛞 RODAGEM DE PNEUS</a>
         <a href="/?painel=motos" class="ativo">🏍️ TROCA DE ÓLEO MOTOS</a>
     </div>
 
@@ -616,10 +616,10 @@
     </div>
     <div class="tabela-container">
         <table>
-            <thead><tr><th>Frota</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
+            <thead><tr><th>Frota</th><th>Responsável / Setor</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
             <tbody>
                 {% for indice, linha in motos.tabela.iterrows() %}
-                <tr><td>{{ linha["Frota"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td><td>{{ linha["Estado por quilometragem"] }}</td><td><span class="status status-{{ linha["Status"].replace(" ", "-") }}">{{ linha["Status"] }}</span></td></tr>
+                <tr><td>{{ linha["Frota"] }}</td><td>{{ linha["Responsável / Setor"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td><td>{{ linha["Estado por quilometragem"] }}</td><td><span class="status status-{{ linha["Status"].replace(" ", "-") }}">{{ linha["Status"] }}</span></td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -630,12 +630,12 @@
         new Chart(document.getElementById("graficoMotos"), {
             type: "bar",
             data: {
-                labels: {{ motos.grafico_labels_json | safe }},
+                labels: {{ motos.grafico_labels | tojson }},
                 datasets: [{
-                    label: {{ motos.grafico_label_json | safe }},
-                    data: {{ motos.grafico_valores_json | safe }},
-                    backgroundColor: {{ motos.grafico_cores_json | safe }},
-                    borderColor: {{ motos.grafico_cores_json | safe }},
+                    label: {{ ("KM para troca de óleo" if not motos.status_filtro else "KM • " ~ motos.status_filtro) | tojson }},
+                    data: {{ motos.grafico_valores | tojson }},
+                    backgroundColor: {{ motos.grafico_cores | tojson }},
+                    borderColor: {{ motos.grafico_cores | tojson }},
                     borderWidth: 1, borderRadius: 5, borderSkipped: false
                 }]
             },
@@ -656,8 +656,8 @@
 
     <div class="painel-nav" style="justify-content:center; margin:18px 0 28px;">
         <a href="/?painel=manutencao&categoria=geral" class="{% if manutencao.categoria == 'geral' %}ativo{% endif %}">🔧 GERAL</a>
-        <a href="/?painel=manutencao&categoria=oleo" class="{% if manutencao.categoria == 'oleo' %}ativo{% endif %}">🛢️ TROCA DE ÓLEO</a>
-        <a href="/?painel=manutencao&categoria=pneus" class="{% if manutencao.categoria == 'pneus' %}ativo{% endif %}">🛞 PNEUS</a>
+        <a href="/?painel=manutencao&categoria=oleo" class="{% if manutencao.categoria == 'oleo' %}ativo{% endif %}">🛢️ TROCA DE ÓLEO VEÍCULOS</a>
+        <a href="/?painel=manutencao&categoria=pneus" class="{% if manutencao.categoria == 'pneus' %}ativo{% endif %}">🛞 RODAGEM DE PNEUS</a>
         <a href="/?painel=motos">🏍️ TROCA DE ÓLEO MOTOS</a>
     </div>
 
@@ -727,11 +727,11 @@
     </div>
     <div class="tabela-container">
         <table>
-            <thead><tr><th>Frota</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
+            <thead><tr><th>Frota</th><th>Responsável / Setor</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
             <tbody>
                 {% for indice, linha in manutencao.tabela.iterrows() %}
                 <tr>
-                    <td>{{ linha["Frota"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td>
+                    <td>{{ linha["Frota"] }}</td><td>{{ linha["Responsável / Setor"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td>
                     <td>{{ linha["Estado por quilometragem"] }}</td>
                     <td><span class="status status-{{ linha["Status"].replace(" ", "-") }}">{{ linha["Status"] }}</span></td>
                 </tr>
@@ -1196,7 +1196,7 @@
 
     {% endif %}
 
-    {% if painel not in ["manutencao", "motos"] %}
+    {% if painel == "ocorrencias" %}
     <!-- =====================================================
          JAVASCRIPT
     ===================================================== -->

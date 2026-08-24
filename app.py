@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import glob
 import re
-import json
 
 import io
 from flask import send_file
@@ -213,24 +212,22 @@ def classificar_gravidade(excesso, cerca):
 # IDENTIFICAR CERCA
 # ============================================================
 
-def identificar_cerca(texto):
+def identificar_cerca(texto, velocidade_limite=None):
+    if not pd.isna(texto):
+        texto_upper = str(texto).upper()
+        for cerca in ["NOVA PIRATININGA", "SEDE", "FAZENDA", "RETRO", "RETIRO"]:
+            if cerca in texto_upper:
+                return cerca
 
-    if pd.isna(texto):
-        return "NÃO IDENTIFICADA"
+    try:
+        limite = float(velocidade_limite)
+    except (TypeError, ValueError):
+        limite = None
 
-    texto = str(texto).upper()
-
-    cercas = [
-        "SEDE",
-        "NOVA PIRATININGA",
-        "FAZENDA",
-        "RETRO",
-        "RETIRO"
-    ]
-
-    for cerca in cercas:
-        if cerca in texto:
-            return cerca
+    if limite == 30:
+        return "SEDE"
+    if limite == 70:
+        return "NOVA PIRATININGA"
 
     return "NÃO IDENTIFICADA"
 
@@ -432,8 +429,12 @@ def processar_dados():
     # CERCA E GRAVIDADE
     # ========================================================
 
-    df["Cerca"] = df[coluna_alerta].apply(
-        identificar_cerca
+    df["Cerca"] = df.apply(
+        lambda linha: identificar_cerca(
+            linha[coluna_alerta],
+            linha["Velocidade Limite"]
+        ),
+        axis=1
     )
 
     df["Gravidade"] = df.apply(
@@ -519,11 +520,33 @@ def classificar_status_manutencao(estado, km):
     return "EM DIA"
 
 
+# ============================================================
+# PROCESSAR MOTOS
+# ============================================================
+
+# Frotas identificadas como motocicletas na base atual.
+# O painel fica separado para aplicar a regra própria de troca de óleo.
 FROTAS_MOTOS = {"FNP-0186", "FNP-0372"}
+
+# Responsável / Setor — usado somente na manutenção de veículos.
+RESPONSAVEIS_FROTAS = {
+    "FNP-4100": "DIAGNER",
+    "FNP-4103": "PEDRO VINICIUS",
+    "FNP-4094": "PEDRO DEO",
+    "FNP-4083": "DIEGO",
+    "FNP-0186": "MATHIAS",
+    "FNP-0372": "DIAGNER",
+}
+
+def responsavel_por_frota(frota):
+    return RESPONSAVEIS_FROTAS.get(
+        str(frota).strip().upper().replace("FNP- ", "FNP-"),
+        "NÃO CADASTRADO"
+    )
 
 
 def classificar_status_moto(km):
-    """Classificação específica das motos: troca de óleo a cada 1.000 km."""
+    """Status para motos: troca de óleo a cada 1.000 km."""
     if km is None or pd.isna(km):
         return "SEM DADO"
     if km <= 0:
@@ -537,16 +560,25 @@ def classificar_status_moto(km):
 
 def dados_dashboard_motos(status_filtro=""):
     resultado = processar_manutencao()
-    dados = resultado["dados"].copy()
+    dados_base = resultado["dados"].copy()
 
-    dados = dados[
-        dados["Frota"].astype(str).str.upper().isin(FROTAS_MOTOS)
+    # Seleciona somente as motos cadastradas.
+    dados = dados_base[
+        dados_base["Frota"].astype(str).str.upper().isin(FROTAS_MOTOS)
     ].copy()
 
+    # As motos fazem troca de óleo a cada 1.000 km.
     dados["Status"] = dados["KM"].apply(classificar_status_moto)
 
-    ordem_status = {"VENCIDA": 0, "CRÍTICA": 1, "PRÓXIMA": 2, "EM DIA": 3, "SEM DADO": 4}
-    dados["OrdemStatus"] = dados["Status"].map(ordem_status).fillna(99).astype(int)
+    ordem_status = {
+        "VENCIDA": 0,
+        "CRÍTICA": 1,
+        "PRÓXIMA": 2,
+        "EM DIA": 3,
+        "SEM DADO": 4
+    }
+    dados["OrdemStatus"] = dados["Status"].map(ordem_status).fillna(99)
+
     dados = dados.sort_values(
         by=["OrdemStatus", "KM", "Frota"],
         ascending=[True, True, True],
@@ -562,7 +594,11 @@ def dados_dashboard_motos(status_filtro=""):
     if status_filtro not in {"VENCIDA", "CRÍTICA", "PRÓXIMA", "EM DIA"}:
         status_filtro = ""
 
-    dados_filtrados = dados[dados["Status"] == status_filtro].copy() if status_filtro else dados.copy()
+    dados_filtrados = (
+        dados[dados["Status"] == status_filtro].copy()
+        if status_filtro else dados.copy()
+    )
+
     ranking = dados_filtrados.head(10).copy()
 
     cores = {
@@ -573,41 +609,38 @@ def dados_dashboard_motos(status_filtro=""):
         "SEM DADO": "#64748B"
     }
 
-    grafico_valores = []
-    for _, linha in ranking.iterrows():
-        valor = linha["KM"]
-        if pd.isna(valor):
-            grafico_valores.append(0)
-        elif linha["Status"] == "VENCIDA":
-            grafico_valores.append(abs(int(valor)))
-        else:
-            grafico_valores.append(int(valor))
+    # Valores simples (str/int/list) para o Chart.js.
+    # Evita qualquer Undefined/objeto pandas na serialização do Jinja.
+    grafico_labels = [str(x) for x in ranking["Frota"].tolist()]
+    grafico_valores = [
+        int(abs(linha["KM"])) if linha["Status"] == "VENCIDA" and pd.notna(linha["KM"])
+        else (int(linha["KM"]) if pd.notna(linha["KM"]) else 0)
+        for _, linha in ranking.iterrows()
+    ]
+    grafico_cores = [
+        str(cores.get(str(status), "#64748B"))
+        for status in ranking["Status"].tolist()
+    ]
 
     return {
-        "arquivo": str(resultado["arquivo"]),
-        "aba": str(resultado["aba"]),
+        "arquivo": resultado["arquivo"],
+        "aba": resultado["aba"],
         "status_filtro": status_filtro,
         "status_nome": status_filtro if status_filtro else "TODAS",
         "vencidas": vencidas,
         "criticas": criticas,
         "proximas": proximas,
         "em_dia": em_dia,
-        "total": int(len(dados_filtrados)),
+        "total": len(dados_filtrados),
         "frotas": int(dados_filtrados["Frota"].nunique()) if not dados_filtrados.empty else 0,
-        "grafico_labels": [str(x) for x in ranking["Frota"].tolist()],
-        "grafico_valores": [int(x) for x in grafico_valores],
-        "grafico_cores": [str(cores.get(status, "#64748B")) for status in ranking["Status"].tolist()],
-        # JSON pronto para o template: evita que o Jinja tente serializar Undefined.
-        "grafico_labels_json": json.dumps([str(x) for x in ranking["Frota"].tolist()], ensure_ascii=False),
-        "grafico_valores_json": json.dumps([int(x) for x in grafico_valores]),
-        "grafico_cores_json": json.dumps([str(cores.get(status, "#64748B")) for status in ranking["Status"].tolist()]),
-        "grafico_label_json": json.dumps(
-            "KM vencidos" if status_filtro == "VENCIDA" else "KM para troca de óleo",
-            ensure_ascii=False
-        ),
-        "titulo_grafico": (f"TOP 10 • {status_filtro} • MOTOS" if status_filtro else "TOP 10 MAIS URGENTES • MOTOS"),
-        "titulo_tabela": (f"MOTOS {status_filtro}" if status_filtro else "TROCAS DE ÓLEO • MOTOS"),
-        "tabela": dados_filtrados[["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]].copy()
+        "grafico_labels": grafico_labels,
+        "grafico_valores": grafico_valores,
+        "grafico_cores": grafico_cores,
+        "titulo_grafico": f"TOP 10 MAIS URGENTES • MOTOS" if not status_filtro else f"TOP 10 • {status_filtro} • MOTOS",
+        "titulo_tabela": f"MOTOS {status_filtro}" if status_filtro else "MANUTENÇÃO DAS MOTOS",
+        "tabela": dados_filtrados[
+            ["Frota", "Responsável / Setor", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
+        ].copy()
     }
 
 
@@ -648,6 +681,7 @@ def processar_manutencao():
 
     dados = pd.DataFrame()
     dados["Frota"] = df[coluna_frota].fillna("").astype(str).str.strip()
+    dados["Responsável / Setor"] = dados["Frota"].apply(responsavel_por_frota)
     dados["Manutenção"] = (
         df[coluna_manutencao].fillna("").astype(str).str.strip()
         if coluna_manutencao is not None else ""
@@ -697,7 +731,8 @@ def dados_dashboard_manutencao(categoria="geral", status_filtro=""):
     resultado = processar_manutencao()
     dados_base = resultado["dados"].copy()
 
-    # As motos possuem painel e regra própria de troca de óleo.
+    # Motos pertencem exclusivamente ao painel de motos.
+    # Nunca devem aparecer no painel de manutenção de veículos.
     dados_base = dados_base[
         ~dados_base["Frota"].astype(str).str.upper().isin(FROTAS_MOTOS)
     ].copy()
@@ -718,7 +753,7 @@ def dados_dashboard_manutencao(categoria="geral", status_filtro=""):
             "PNEU", regex=True, na=False
         )
         dados_categoria = dados_base[mascara].copy()
-        categoria_nome = "PNEUS"
+        categoria_nome = "RODAGEM DE PNEUS"
     else:
         dados_categoria = dados_base.copy()
         categoria = "geral"
@@ -812,7 +847,7 @@ def dados_dashboard_manutencao(categoria="geral", status_filtro=""):
         ],
 
         "tabela": dados[
-            ["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
+            ["Frota", "Responsável / Setor", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
         ].copy()
     }
 
@@ -889,9 +924,16 @@ def exportar_ocorrencias():
 def exportar_motos():
     status_filtro = request.args.get("status", "").strip().upper()
     resultado = dados_dashboard_motos(status_filtro=status_filtro)
-    colunas = ["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
+
+    colunas = ["Frota", "Manutenção", "Descrição",
+               "Estado por quilometragem", "Status"]
     dados = resultado["tabela"].copy()
-    return exportar_excel(dados, "troca_oleo_motos_dashboard.xlsx", colunas)
+
+    return exportar_excel(
+        dados,
+        "motos_dashboard.xlsx",
+        colunas
+    )
 
 
 @app.route("/exportar/manutencao")
@@ -924,14 +966,13 @@ def index():
 
         if painel == "motos":
             status_filtro = request.args.get("status", "").strip().upper()
+
             motos = dados_dashboard_motos(status_filtro=status_filtro)
+
             return render_template(
                 "index.html",
                 painel="motos",
-                motos=motos,
-                total=0,
-                condutores=0,
-                frotas=0
+                motos=motos
             )
 
         if painel == "manutencao":
@@ -946,10 +987,7 @@ def index():
             return render_template(
                 "index.html",
                 painel="manutencao",
-                manutencao=manutencao,
-                total=0,
-                condutores=0,
-                frotas=0
+                manutencao=manutencao
             )
 
         resultado = processar_dados()
@@ -1470,9 +1508,13 @@ def index():
         )
 
     except Exception as erro:
-        import traceback
-        traceback.print_exc()
-        raise
+
+        return (
+            "<h1>CENTRAL DE MONITORAMENTO - FROTAS LEVES</h1>"
+            "<h2>Erro ao carregar dados</h2>"
+            f"<p>Erro: {erro}</p>"
+            f"<p><b>Pasta de dados:</b> {PASTA_DADOS}</p>"
+        )
 
 
 # ============================================================
