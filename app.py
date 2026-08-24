@@ -1,25 +1,52 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request
 import pandas as pd
 import os
 import glob
 import re
 
+import io
+from flask import send_file
+
+def exportar_excel(df, nome_arquivo, colunas):
+    """Exporta somente as colunas exibidas no dashboard, sem cores."""
+    export_df = df[colunas].copy()
+
+    # Formata os campos numéricos de acordo com a tabela do dashboard.
+    for coluna in ["Velocidade Atual", "Velocidade Limite", "Excesso"]:
+        if coluna in export_df.columns:
+            export_df[coluna] = pd.to_numeric(export_df[coluna], errors="coerce")
+
+    memoria = io.BytesIO()
+    with pd.ExcelWriter(memoria, engine="openpyxl") as writer:
+        export_df.to_excel(writer, index=False, sheet_name="Dados")
+        ws = writer.book["Dados"]
+
+        # Ajusta largura das colunas sem aplicar cores.
+        for coluna in ws.columns:
+            maior = max(len(str(celula.value or "")) for celula in coluna)
+            ws.column_dimensions[coluna[0].column_letter].width = min(max(maior + 2, 10), 35)
+
+        ws.auto_filter.ref = ws.dimensions
+        ws.freeze_panes = "A2"
+
+        # Mantém formato numérico simples para as colunas de velocidade.
+        for nome in ["Velocidade Atual", "Velocidade Limite", "Excesso"]:
+            if nome in export_df.columns:
+                indice = list(export_df.columns).index(nome) + 1
+                for celula in ws.iter_cols(min_col=indice, max_col=indice, min_row=2):
+                    for item in celula:
+                        item.number_format = '0.##'
+
+    memoria.seek(0)
+    return send_file(
+        memoria,
+        as_attachment=True,
+        download_name=nome_arquivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
 app = Flask(__name__)
-
-app.secret_key = os.environ.get(
-    "SECRET_KEY",
-    "troque-esta-chave-por-uma-chave-segura-no-render"
-)
-
-USUARIO_LOGIN = os.environ.get(
-    "USUARIO_LOGIN",
-    "FNP-ADMIN"
-)
-
-SENHA_LOGIN = os.environ.get(
-    "SENHA_LOGIN",
-    "R0ta!Frota#2026@Segura"
-)
 
 
 # ============================================================
@@ -478,29 +505,12 @@ def extrair_km_manutencao(valor):
         return None
 
 
-# Frotas cadastradas como motocicletas
-MOTOS = {"FNP-0186", "FNP-0372"}
-
-
-def classificar_status_manutencao(estado, km, frota):
+def classificar_status_manutencao(estado, km):
     texto = str(estado).strip().lower()
-    frota_normalizada = str(frota).strip().upper()
-
     if "expir" in texto:
         return "VENCIDA"
-
     if km is None or pd.isna(km):
         return "SEM DADO"
-
-    # Motos: ciclo de manutenção de 1.000 km
-    if frota_normalizada in MOTOS:
-        if km <= 100:
-            return "CRÍTICA"
-        elif km <= 500:
-            return "PRÓXIMA"
-        return "EM DIA"
-
-    # Demais veículos: ciclo de referência de 10.000 km
     if km <= 1000:
         return "CRÍTICA"
     elif km <= 5000:
@@ -567,9 +577,7 @@ def processar_manutencao():
     dados["KM"] = dados["Estado por quilometragem"].apply(extrair_km_manutencao)
     dados["Status"] = dados.apply(
         lambda linha: classificar_status_manutencao(
-            linha["Estado por quilometragem"],
-            linha["KM"],
-            linha["Frota"]
+            linha["Estado por quilometragem"], linha["KM"]
         ),
         axis=1
     )
@@ -592,61 +600,59 @@ def processar_manutencao():
     return {"arquivo": nome_arquivo, "aba": aba, "dados": dados}
 
 
-def normalizar_texto(texto):
-    texto = str(texto).upper()
-    texto = re.sub(r"[ÁÀÃÂÄ]", "A", texto)
-    texto = re.sub(r"[ÉÈÊË]", "E", texto)
-    texto = re.sub(r"[ÍÌÎÏ]", "I", texto)
-    texto = re.sub(r"[ÓÒÕÔÖ]", "O", texto)
-    texto = re.sub(r"[ÚÙÛÜ]", "U", texto)
-    texto = texto.replace("Ç", "C")
-    return texto
-
-
-def identificar_categoria_manutencao(manutencao, descricao):
-    texto = normalizar_texto(f"{manutencao} {descricao}")
-
-    # Primeiro identifica pneus para evitar misturar serviços específicos.
-    if any(palavra in texto for palavra in [
-        "PNEU", "PNEUS", "RODAGEM", "RODIZIO", "ALINHAMENTO",
-        "BALANCEAMENTO", "CAMBAGEM"
-    ]):
-        return "pneus"
-
-    if any(palavra in texto for palavra in [
-        "OLEO", "LUBRIFIC", "LUBRIFICACAO", "FILTRO DE OLEO"
-    ]):
-        return "oleo"
-
-    return "outros"
-
-
-def dados_dashboard_manutencao(categoria="geral"):
+def dados_dashboard_manutencao(categoria="geral", status_filtro=""):
     resultado = processar_manutencao()
-    dados = resultado["dados"].copy()
+    dados_base = resultado["dados"].copy()
 
+    # ========================================================
+    # FILTRO POR CATEGORIA
+    # ========================================================
     categoria = str(categoria or "geral").strip().lower()
-    categorias_validas = {"geral", "oleo", "pneus"}
-    if categoria not in categorias_validas:
+
+    if categoria == "oleo":
+        mascara = dados_base["Descrição"].astype(str).str.upper().str.contains(
+            "OLEO|ÓLEO", regex=True, na=False
+        )
+        dados_categoria = dados_base[mascara].copy()
+        categoria_nome = "TROCA DE ÓLEO"
+    elif categoria == "pneus":
+        mascara = dados_base["Descrição"].astype(str).str.upper().str.contains(
+            "PNEU", regex=True, na=False
+        )
+        dados_categoria = dados_base[mascara].copy()
+        categoria_nome = "PNEUS"
+    else:
+        dados_categoria = dados_base.copy()
         categoria = "geral"
+        categoria_nome = "GERAL"
 
-    dados["Categoria"] = dados.apply(
-        lambda linha: identificar_categoria_manutencao(
-            linha["Manutenção"], linha["Descrição"]
-        ),
-        axis=1
-    )
+    # ========================================================
+    # CONTADORES DA CATEGORIA (ficam visíveis nos cards)
+    # ========================================================
+    vencidas = int((dados_categoria["Status"] == "VENCIDA").sum())
+    criticas = int((dados_categoria["Status"] == "CRÍTICA").sum())
+    proximas = int((dados_categoria["Status"] == "PRÓXIMA").sum())
+    em_dia = int((dados_categoria["Status"] == "EM DIA").sum())
 
-    if categoria in {"oleo", "pneus"}:
-        dados = dados[dados["Categoria"] == categoria].copy()
+    # ========================================================
+    # FILTRO DO CARD CLICADO
+    # ========================================================
+    status_filtro = str(status_filtro or "").strip().upper()
 
-    total = len(dados)
-    frotas = int(dados["Frota"].nunique()) if not dados.empty else 0
-    vencidas = int((dados["Status"] == "VENCIDA").sum())
-    criticas = int((dados["Status"] == "CRÍTICA").sum())
-    proximas = int((dados["Status"] == "PRÓXIMA").sum())
-    em_dia = int((dados["Status"] == "EM DIA").sum())
+    status_validos = {"VENCIDA", "CRÍTICA", "PRÓXIMA", "EM DIA"}
+    if status_filtro not in status_validos:
+        status_filtro = ""
 
+    if status_filtro:
+        dados = dados_categoria[
+            dados_categoria["Status"].astype(str).str.upper() == status_filtro
+        ].copy()
+    else:
+        dados = dados_categoria.copy()
+
+    # ========================================================
+    # RANKING DO GRÁFICO
+    # ========================================================
     ranking = dados.sort_values(
         by=["OrdemStatus", "KM", "Frota"],
         ascending=[True, True, True],
@@ -661,32 +667,52 @@ def dados_dashboard_manutencao(categoria="geral"):
         "SEM DADO": "#64748B"
     }
 
-    nomes_categoria = {
-        "geral": "GERAL",
-        "oleo": "TROCA DE ÓLEO",
-        "pneus": "PNEUS"
-    }
+    # Para vencidas, KM é negativo no cálculo original.
+    # O gráfico deve mostrar a quantidade vencida como valor positivo.
+    grafico_valores = []
+    for _, linha in ranking.iterrows():
+        valor = linha["KM"]
+        if pd.isna(valor):
+            grafico_valores.append(0)
+        elif linha["Status"] == "VENCIDA":
+            grafico_valores.append(abs(int(valor)))
+        else:
+            grafico_valores.append(int(valor))
+
+    if status_filtro:
+        titulo_grafico = f"TOP 10 • {status_filtro} • {categoria_nome}"
+        titulo_tabela = f"FROTAS {status_filtro} • {categoria_nome}"
+    else:
+        titulo_grafico = f"TOP 10 MAIS URGENTES • {categoria_nome}"
+        titulo_tabela = f"PRÓXIMAS MANUTENÇÕES • {categoria_nome}"
 
     return {
         "arquivo": resultado["arquivo"],
         "aba": resultado["aba"],
         "categoria": categoria,
-        "categoria_nome": nomes_categoria[categoria],
-        "total": total,
-        "frotas": frotas,
+        "categoria_nome": categoria_nome,
+        "status_filtro": status_filtro,
+        "status_nome": status_filtro if status_filtro else "TODAS",
+        "titulo_grafico": titulo_grafico,
+        "titulo_tabela": titulo_tabela,
+
+        # Quantidades dos cards da categoria
         "vencidas": vencidas,
         "criticas": criticas,
         "proximas": proximas,
         "em_dia": em_dia,
+
+        # Quantidades da visão filtrada
+        "total": len(dados),
+        "frotas": int(dados["Frota"].nunique()) if not dados.empty else 0,
+
         "grafico_labels": ranking["Frota"].tolist(),
-        "grafico_valores": [
-            int(valor) if pd.notna(valor) else 0
-            for valor in ranking["KM"].tolist()
-        ],
+        "grafico_valores": grafico_valores,
         "grafico_cores": [
             cores.get(status, "#64748B")
             for status in ranking["Status"].tolist()
         ],
+
         "tabela": dados[
             ["Frota", "Manutenção", "Descrição", "Estado por quilometragem", "Status"]
         ].copy()
@@ -694,54 +720,110 @@ def dados_dashboard_manutencao(categoria="geral"):
 
 
 # ============================================================
-# LOGIN
-# ============================================================
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    erro = ""
-
-    if request.method == "POST":
-        usuario = request.form.get("usuario", "").strip()
-        senha = request.form.get("senha", "")
-
-        if usuario == USUARIO_LOGIN and senha == SENHA_LOGIN:
-            session["autenticado"] = True
-
-            proxima_url = request.args.get("next")
-            if proxima_url:
-                return redirect(proxima_url)
-
-            return redirect(url_for("index"))
-
-        erro = "Usuário ou senha incorretos."
-
-    return render_template("login.html", erro=erro)
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-
-# ============================================================
 # ROTA PRINCIPAL
 # ============================================================
 
+@app.route("/exportar/ocorrencias")
+def exportar_ocorrencias():
+    resultado = processar_dados()
+    dados = resultado["dados"].copy()
+
+    data_inicio = request.args.get("data_inicio", "")
+    data_fim = request.args.get("data_fim", "")
+    frota = request.args.get("frota", "")
+    condutor = request.args.get("condutor", "")
+    cerca = request.args.get("cerca", "")
+    gravidade = request.args.get("gravidade", "")
+    faixa_excesso = request.args.get("faixa_excesso", "")
+    hora = request.args.get("hora", "")
+
+    if data_inicio:
+        inicio = pd.to_datetime(data_inicio, errors="coerce")
+        if pd.notna(inicio):
+            dados = dados[dados["DataHora"] >= inicio]
+
+    if data_fim:
+        fim = pd.to_datetime(data_fim, errors="coerce")
+        if pd.notna(fim):
+            fim = fim + pd.Timedelta(days=1)
+            dados = dados[dados["DataHora"] < fim]
+
+    if frota:
+        dados = dados[dados["Frota"].astype(str) == frota]
+    if condutor:
+        dados = dados[dados["Driver"].astype(str) == condutor]
+    if cerca:
+        dados = dados[dados["Cerca"].astype(str) == cerca]
+    if gravidade:
+        dados = dados[dados["Gravidade"].astype(str) == gravidade]
+
+    if faixa_excesso:
+        excesso = pd.to_numeric(dados["Excesso"], errors="coerce")
+        if faixa_excesso == "1 a 5 km/h":
+            dados = dados[(excesso >= 1) & (excesso <= 5)]
+        elif faixa_excesso == "6 a 10 km/h":
+            dados = dados[(excesso > 5) & (excesso <= 10)]
+        elif faixa_excesso == "11 a 20 km/h":
+            dados = dados[(excesso > 10) & (excesso <= 20)]
+        elif faixa_excesso == "Acima de 20 km/h":
+            dados = dados[excesso > 20]
+
+    if hora:
+        try:
+            hora_numero = int(str(hora).split(":")[0])
+            if 0 <= hora_numero <= 23:
+                dados = dados[dados["DataHora"].dt.hour == hora_numero]
+        except (ValueError, TypeError):
+            pass
+
+    colunas = ["Data", "Hora", "Driver", "Frota", "Velocidade Atual",
+               "Velocidade Limite", "Excesso", "Cerca", "Gravidade"]
+    dados = dados[colunas].copy()
+
+    return exportar_excel(
+        dados,
+        "ocorrencias_dashboard.xlsx",
+        colunas
+    )
+
+
+@app.route("/exportar/manutencao")
+def exportar_manutencao():
+    categoria = request.args.get("categoria", "geral").strip().lower()
+    status_filtro = request.args.get("status", "").strip().upper()
+
+    resultado = dados_dashboard_manutencao(
+        categoria=categoria,
+        status_filtro=status_filtro
+    )
+
+    colunas = ["Frota", "Manutenção", "Descrição",
+               "Estado por quilometragem", "Status"]
+    dados = resultado["tabela"].copy()
+
+    return exportar_excel(
+        dados,
+        "manutencao_dashboard.xlsx",
+        colunas
+    )
+
+
 @app.route("/")
 def index():
-
-    if not session.get("autenticado"):
-        return redirect(url_for("login", next=request.url))
 
     try:
 
         painel = request.args.get("painel", "ocorrencias").strip().lower()
 
         if painel == "manutencao":
-            categoria_manutencao = request.args.get("categoria", "geral")
-            manutencao = dados_dashboard_manutencao(categoria_manutencao)
+            categoria = request.args.get("categoria", "geral").strip().lower()
+            status_filtro = request.args.get("status", "").strip().upper()
+
+            manutencao = dados_dashboard_manutencao(
+                categoria=categoria,
+                status_filtro=status_filtro
+            )
+
             return render_template(
                 "index.html",
                 painel="manutencao",

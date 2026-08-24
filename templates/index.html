@@ -174,6 +174,41 @@
         .card-manutencao-proxima .card-title, .card-manutencao-proxima .card-number { color:#7a6200; }
         .card-manutencao-em-dia { background:#e8f5e9 !important; border:1px solid #4caf50; }
         .card-manutencao-em-dia .card-title, .card-manutencao-em-dia .card-number { color:#1b5e20; }
+
+        .card-filtro-manutencao {
+            display:block;
+            text-decoration:none;
+            color:inherit;
+            cursor:pointer;
+            transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+
+        .card-filtro-manutencao:hover {
+            transform:translateY(-3px);
+            filter:brightness(1.03);
+            box-shadow:0 10px 22px rgba(15,23,42,.14);
+        }
+
+        .card-ativo-manutencao {
+            box-shadow:0 0 0 3px rgba(38,52,69,.22), 0 10px 22px rgba(15,23,42,.16);
+        }
+
+        .filtro-manutencao-ativo {
+            background:white;
+            border-radius:10px;
+            padding:10px 14px;
+            margin:-5px 0 18px;
+            box-shadow:0 2px 8px rgba(0,0,0,.07);
+            color:#475569;
+            font-size:13px;
+        }
+
+        .filtro-manutencao-ativo a {
+            float:right;
+            color:#263445;
+            font-weight:bold;
+            text-decoration:none;
+        }
         .status { display:inline-block; padding:5px 9px; border-radius:999px; font-size:11px; font-weight:bold; }
         .status-VENCIDA { background:#fde4e4; color:#a31515; }
         .status-CRÍTICA { background:#ffeadb; color:#a94700; }
@@ -295,6 +330,35 @@
 
         tr:hover td {
             background: #f1f5f9;
+        }
+
+        .titulo-tabela-acoes {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        .titulo-tabela-acoes h2 {
+            margin: 0;
+        }
+
+        .botao-exportar {
+            display: inline-block;
+            padding: 9px 15px;
+            border-radius: 7px;
+            background: #263445;
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .botao-exportar:hover {
+            background: #1e293b;
         }
 
         .footer {
@@ -513,15 +577,48 @@
     <h2 style="margin-bottom:18px;">VISÃO: {{ manutencao.categoria_nome }}</h2>
 
     <div class="cards">
-        <div class="card card-manutencao card-manutencao-vencida"><div class="card-title">MANUTENÇÕES VENCIDAS</div><div class="card-number">{{ manutencao.vencidas }}</div></div>
-        <div class="card card-manutencao card-manutencao-critica"><div class="card-title">MANUTENÇÕES CRÍTICAS</div><div class="card-number">{{ manutencao.criticas }}</div></div>
-        <div class="card card-manutencao card-manutencao-proxima"><div class="card-title">PRÓXIMAS MANUTENÇÕES</div><div class="card-number">{{ manutencao.proximas }}</div></div>
-        <div class="card card-manutencao card-manutencao-em-dia"><div class="card-title">MANUTENÇÕES EM DIA</div><div class="card-number">{{ manutencao.em_dia }}</div></div>
+        <a class="card card-manutencao card-manutencao-vencida card-filtro-manutencao {% if manutencao.status_filtro == 'VENCIDA' %}card-ativo-manutencao{% endif %}"
+           href="/?painel=manutencao&categoria={{ manutencao.categoria }}&status=VENCIDA"
+           title="Mostrar somente as frotas com manutenção vencida">
+            <div class="card-title">MANUTENÇÕES VENCIDAS</div>
+            <div class="card-number">{{ manutencao.vencidas }}</div>
+        </a>
+
+        <a class="card card-manutencao card-manutencao-critica card-filtro-manutencao {% if manutencao.status_filtro == 'CRÍTICA' %}card-ativo-manutencao{% endif %}"
+           href="/?painel=manutencao&categoria={{ manutencao.categoria }}&status=CRÍTICA"
+           title="Mostrar somente as frotas com manutenção crítica">
+            <div class="card-title">MANUTENÇÕES CRÍTICAS</div>
+            <div class="card-number">{{ manutencao.criticas }}</div>
+        </a>
+
+        <a class="card card-manutencao card-manutencao-proxima card-filtro-manutencao {% if manutencao.status_filtro == 'PRÓXIMA' %}card-ativo-manutencao{% endif %}"
+           href="/?painel=manutencao&categoria={{ manutencao.categoria }}&status=PRÓXIMA"
+           title="Mostrar somente as próximas manutenções">
+            <div class="card-title">PRÓXIMAS MANUTENÇÕES</div>
+            <div class="card-number">{{ manutencao.proximas }}</div>
+        </a>
+
+        <a class="card card-manutencao card-manutencao-em-dia card-filtro-manutencao {% if manutencao.status_filtro == 'EM DIA' %}card-ativo-manutencao{% endif %}"
+           href="/?painel=manutencao&categoria={{ manutencao.categoria }}&status=EM%20DIA"
+           title="Mostrar somente as manutenções em dia">
+            <div class="card-title">MANUTENÇÕES EM DIA</div>
+            <div class="card-number">{{ manutencao.em_dia }}</div>
+        </a>
     </div>
+
+    {% if manutencao.status_filtro %}
+    <div class="filtro-manutencao-ativo">
+        <strong>VISÃO ATUAL:</strong>
+        {{ manutencao.total }} registro(s) / {{ manutencao.frotas }} frota(s)
+        • <strong>{{ manutencao.status_nome }}</strong>
+        • {{ manutencao.categoria_nome }}
+        <a href="/?painel=manutencao&categoria={{ manutencao.categoria }}">✕ MOSTRAR TODAS</a>
+    </div>
+    {% endif %}
 
     <div class="graficos-grid">
         <div class="grafico-container">
-            <h2>TOP 10 MAIS URGENTES • {{ manutencao.categoria_nome }}</h2>
+            <h2>{{ manutencao.titulo_grafico }}</h2>
             <div class="grafico-area"><canvas id="graficoManutencao"></canvas></div>
         </div>
         <div class="grafico-container">
@@ -534,7 +631,13 @@
         </div>
     </div>
 
-    <h2>Próximas manutenções • {{ manutencao.categoria_nome }}</h2>
+    <div class="titulo-tabela-acoes">
+        <h2>{{ manutencao.titulo_tabela }}</h2>
+        <a class="botao-exportar"
+           href="/exportar/manutencao?categoria={{ manutencao.categoria }}{% if manutencao.status_filtro %}&status={{ manutencao.status_filtro|urlencode }}{% endif %}">
+            EXPORTAR EXCEL
+        </a>
+    </div>
     <div class="tabela-container">
         <table>
             <thead><tr><th>Frota</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
@@ -571,7 +674,7 @@
             data:{
                 labels:{{ manutencao.grafico_labels | tojson }},
                 datasets:[{
-                    label:"KM para manutenção",
+                    label:{{ ("KM vencidos" if manutencao.status_filtro == "VENCIDA" else "KM para manutenção") | tojson }},
                     data:{{ manutencao.grafico_valores | tojson }},
                     backgroundColor:{{ manutencao.grafico_cores | tojson }},
                     borderColor:{{ manutencao.grafico_cores | tojson }},
@@ -946,8 +1049,12 @@
          TABELA
     ===================================================== -->
 
-    <h2>Ocorrências encontradas</h2>
-
+    <div class="titulo-tabela-acoes">
+        <h2>Ocorrências encontradas</h2>
+        <a class="botao-exportar" id="botaoExportarOcorrencias" href="/exportar/ocorrencias">
+            EXPORTAR EXCEL
+        </a>
+    </div>
 
     <div class="tabela-container">
 
@@ -1044,6 +1151,26 @@
         FUNÇÃO PARA APLICAR FILTROS PELOS GRÁFICOS
         =====================================================
         */
+
+        function atualizarLinkExportacao() {
+            const botao = document.getElementById("botaoExportarOcorrencias");
+            if (!botao) return;
+
+            const url = new URL("/exportar/ocorrencias", window.location.origin);
+            const params = new URLSearchParams(window.location.search);
+
+            [
+                "data_inicio", "data_fim", "frota", "condutor",
+                "cerca", "gravidade", "faixa_excesso", "hora"
+            ].forEach(campo => {
+                const valor = params.get(campo);
+                if (valor) url.searchParams.set(campo, valor);
+            });
+
+            botao.href = url.toString();
+        }
+
+        atualizarLinkExportacao();
 
         function aplicarFiltro(campo, valor) {
 
