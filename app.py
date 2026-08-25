@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from secrets import compare_digest
 import pandas as pd
 import os
 import glob
@@ -47,6 +48,64 @@ def exportar_excel(df, nome_arquivo, colunas):
 
 
 app = Flask(__name__)
+
+# ============================================================
+# AUTENTICAÇÃO
+# ============================================================
+# As credenciais ficam nas variáveis de ambiente do Render.
+# Nunca deixe a senha escrita diretamente neste arquivo.
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(32))
+USUARIO_DASHBOARD = os.environ.get("DASHBOARD_USER", "FNP-ADMIN")
+SENHA_DASHBOARD = os.environ.get("DASHBOARD_PASSWORD")
+
+
+def usuario_autenticado():
+    return session.get("autenticado") is True
+
+
+@app.before_request
+def proteger_dashboard():
+    # Arquivos estáticos (logo etc.) continuam acessíveis para a tela de login.
+    if request.endpoint in {"login", "static"}:
+        return None
+
+    if not usuario_autenticado():
+        return redirect(url_for("login"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if usuario_autenticado():
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        usuario = request.form.get("usuario", "").strip()
+        senha = request.form.get("senha", "")
+
+        if not SENHA_DASHBOARD:
+            return (
+                "<h1>Configuração de acesso incompleta</h1>"
+                "<p>A variável DASHBOARD_PASSWORD não foi configurada no servidor.</p>",
+                500,
+            )
+
+        if compare_digest(usuario, USUARIO_DASHBOARD) and compare_digest(senha, SENHA_DASHBOARD):
+            session.clear()
+            session["autenticado"] = True
+            session["usuario"] = usuario
+            return redirect(url_for("index"))
+
+        flash("Usuário ou senha incorretos.", "erro")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 
 
 # ============================================================
