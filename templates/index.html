@@ -317,9 +317,125 @@
         th {
             background: #263445;
             color: white;
-            padding: 11px 8px;
+            padding: 0;
             text-align: left;
             white-space: nowrap;
+        }
+
+        .th-filtro-excel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 42px;
+            padding: 8px;
+        }
+
+        .botao-filtro-coluna {
+            border: 0;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 24px;
+        }
+
+        .botao-filtro-coluna:hover, .botao-filtro-coluna.ativo {
+            background: rgba(255,255,255,.20);
+        }
+
+        .menu-filtro-excel {
+            position: fixed;
+            z-index: 10000;
+            width: 280px;
+            max-height: 380px;
+            background: #fff;
+            color: #263445;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(15,23,42,.22);
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        .filtro-pesquisa-coluna {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            outline: none;
+            margin-bottom: 8px;
+        }
+
+        .filtro-pesquisa-coluna:focus {
+            border-color: #64748b;
+            box-shadow: 0 0 0 2px rgba(100,116,139,.12);
+        }
+
+        .filtro-acoes-coluna {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 2px 8px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 5px;
+        }
+
+        .filtro-acoes-coluna label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .limpar-filtro-coluna {
+            border: 0;
+            background: transparent;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 3px;
+        }
+
+        .limpar-filtro-coluna:hover { text-decoration: underline; }
+
+        .lista-valores-filtro {
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 3px;
+        }
+
+        .valor-filtro-coluna {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 4px;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .valor-filtro-coluna:hover { background: #f1f5f9; }
+
+        .valor-filtro-coluna span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sem-resultados-filtro {
+            color: #64748b;
+            padding: 12px 5px;
+            text-align: center;
         }
 
         td {
@@ -615,8 +731,17 @@
         <a class="botao-exportar" href="/exportar/motos{% if motos.status_filtro %}?status={{ motos.status_filtro|urlencode }}{% endif %}">EXPORTAR EXCEL</a>
     </div>
     <div class="tabela-container">
-        <table>
-            <thead><tr><th>Frota</th><th>Responsável / Setor</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
+        <table class="tabela-com-filtro">
+            <thead>
+                <tr>
+                    <th data-coluna="0"><div class="th-filtro-excel"><span>Frota</span><button type="button" class="botao-filtro-coluna" title="Filtrar Frota">▼</button></div></th>
+                    <th data-coluna="1"><div class="th-filtro-excel"><span>Responsável / Setor</span><button type="button" class="botao-filtro-coluna" title="Filtrar Responsável / Setor">▼</button></div></th>
+                    <th data-coluna="2"><div class="th-filtro-excel"><span>Manutenção</span><button type="button" class="botao-filtro-coluna" title="Filtrar Manutenção">▼</button></div></th>
+                    <th data-coluna="3"><div class="th-filtro-excel"><span>Descrição</span><button type="button" class="botao-filtro-coluna" title="Filtrar Descrição">▼</button></div></th>
+                    <th data-coluna="4"><div class="th-filtro-excel"><span>Estado por quilometragem</span><button type="button" class="botao-filtro-coluna" title="Filtrar Estado por quilometragem">▼</button></div></th>
+                    <th data-coluna="5"><div class="th-filtro-excel"><span>Status</span><button type="button" class="botao-filtro-coluna" title="Filtrar Status">▼</button></div></th>
+                </tr>
+            </thead>
             <tbody>
                 {% for indice, linha in motos.tabela.iterrows() %}
                 <tr><td>{{ linha["Frota"] }}</td><td>{{ linha["Responsável / Setor"] }}</td><td>{{ linha["Manutenção"] }}</td><td>{{ linha["Descrição"] }}</td><td>{{ linha["Estado por quilometragem"] }}</td><td><span class="status status-{{ linha["Status"].replace(" ", "-") }}">{{ linha["Status"] }}</span></td></tr>
@@ -726,8 +851,17 @@
         </a>
     </div>
     <div class="tabela-container">
-        <table>
-            <thead><tr><th>Frota</th><th>Responsável / Setor</th><th>Manutenção</th><th>Descrição</th><th>Estado por quilometragem</th><th>Status</th></tr></thead>
+        <table class="tabela-com-filtro">
+            <thead>
+                <tr>
+                    <th data-coluna="0"><div class="th-filtro-excel"><span>Frota</span><button type="button" class="botao-filtro-coluna" title="Filtrar Frota">▼</button></div></th>
+                    <th data-coluna="1"><div class="th-filtro-excel"><span>Responsável / Setor</span><button type="button" class="botao-filtro-coluna" title="Filtrar Responsável / Setor">▼</button></div></th>
+                    <th data-coluna="2"><div class="th-filtro-excel"><span>Manutenção</span><button type="button" class="botao-filtro-coluna" title="Filtrar Manutenção">▼</button></div></th>
+                    <th data-coluna="3"><div class="th-filtro-excel"><span>Descrição</span><button type="button" class="botao-filtro-coluna" title="Filtrar Descrição">▼</button></div></th>
+                    <th data-coluna="4"><div class="th-filtro-excel"><span>Estado por quilometragem</span><button type="button" class="botao-filtro-coluna" title="Filtrar Estado por quilometragem">▼</button></div></th>
+                    <th data-coluna="5"><div class="th-filtro-excel"><span>Status</span><button type="button" class="botao-filtro-coluna" title="Filtrar Status">▼</button></div></th>
+                </tr>
+            </thead>
             <tbody>
                 {% for indice, linha in manutencao.tabela.iterrows() %}
                 <tr>
@@ -740,6 +874,8 @@
         </table>
     </div>
     <div class="footer">Central de Monitoramento - Frotas Leves • Painel de Manutenção</div>
+
+    
 
     <script>
         Chart.register({
@@ -1145,20 +1281,20 @@
 
     <div class="tabela-container">
 
-        <table>
+        <table class="tabela-com-filtro">
 
             <thead>
 
                 <tr>
-                    <th>Data</th>
-                    <th>Hora</th>
-                    <th>Driver</th>
-                    <th>Frota</th>
-                    <th>Velocidade Atual</th>
-                    <th>Velocidade Limite</th>
-                    <th>Excesso</th>
-                    <th>Cerca</th>
-                    <th>Gravidade</th>
+                    <th data-coluna="0"><div class="th-filtro-excel"><span>Data</span><button type="button" class="botao-filtro-coluna" title="Filtrar Data">▼</button></div></th>
+                    <th data-coluna="1"><div class="th-filtro-excel"><span>Hora</span><button type="button" class="botao-filtro-coluna" title="Filtrar Hora">▼</button></div></th>
+                    <th data-coluna="2"><div class="th-filtro-excel"><span>Driver</span><button type="button" class="botao-filtro-coluna" title="Filtrar Driver">▼</button></div></th>
+                    <th data-coluna="3"><div class="th-filtro-excel"><span>Frota</span><button type="button" class="botao-filtro-coluna" title="Filtrar Frota">▼</button></div></th>
+                    <th data-coluna="4"><div class="th-filtro-excel"><span>Velocidade Atual</span><button type="button" class="botao-filtro-coluna" title="Filtrar Velocidade Atual">▼</button></div></th>
+                    <th data-coluna="5"><div class="th-filtro-excel"><span>Velocidade Limite</span><button type="button" class="botao-filtro-coluna" title="Filtrar Velocidade Limite">▼</button></div></th>
+                    <th data-coluna="6"><div class="th-filtro-excel"><span>Excesso</span><button type="button" class="botao-filtro-coluna" title="Filtrar Excesso">▼</button></div></th>
+                    <th data-coluna="7"><div class="th-filtro-excel"><span>Cerca</span><button type="button" class="botao-filtro-coluna" title="Filtrar Cerca">▼</button></div></th>
+                    <th data-coluna="8"><div class="th-filtro-excel"><span>Gravidade</span><button type="button" class="botao-filtro-coluna" title="Filtrar Gravidade">▼</button></div></th>
                 </tr>
 
             </thead>
@@ -1940,6 +2076,185 @@
     {% endif %}
 
 
-<div style="position:fixed;right:18px;top:14px;z-index:9999;"><a href="/logout" style="display:inline-block;padding:8px 12px;border-radius:8px;background:#263238;color:#fff;text-decoration:none;font-size:12px;font-weight:bold;">SAIR</a></div></body>
+<div style="position:fixed;right:18px;top:14px;z-index:9999;"><a href="/logout" style="display:inline-block;padding:8px 12px;border-radius:8px;background:#263238;color:#fff;text-decoration:none;font-size:12px;font-weight:bold;">SAIR</a></div>    <script>
+        // Filtros por coluna no estilo Excel para TODAS as tabelas do Dashboard.
+        (function () {
+            const tabelas = Array.from(document.querySelectorAll('table.tabela-com-filtro'));
+            if (!tabelas.length) return;
+
+            tabelas.forEach((tabela, indiceTabela) => {
+                const cabecalhos = Array.from(tabela.querySelectorAll('thead th'));
+                const linhas = Array.from(tabela.querySelectorAll('tbody tr'));
+                const filtros = new Map();
+                let menuAberto = null;
+
+                cabecalhos.forEach((th, coluna) => {
+                    if (!th.dataset.coluna) th.dataset.coluna = String(coluna);
+                    if (!th.querySelector('.botao-filtro-coluna')) {
+                        const texto = th.textContent.trim();
+                        th.innerHTML = `<div class="th-filtro-excel"><span>${texto}</span><button type="button" class="botao-filtro-coluna" title="Filtrar ${texto}">▼</button></div>`;
+                    }
+                });
+
+                function textoCelula(linha, coluna) {
+                    return (linha.cells[coluna]?.textContent || '').replace(/\s+/g, ' ').trim();
+                }
+
+                function fecharMenu() {
+                    if (menuAberto) {
+                        menuAberto.remove();
+                        menuAberto = null;
+                    }
+                }
+
+                function aplicarFiltros() {
+                    linhas.forEach(linha => {
+                        let visivel = true;
+                        filtros.forEach((selecionados, coluna) => {
+                            if (selecionados && !selecionados.has(textoCelula(linha, coluna))) {
+                                visivel = false;
+                            }
+                        });
+                        linha.style.display = visivel ? '' : 'none';
+                    });
+
+                    cabecalhos.forEach((th, coluna) => {
+                        const botao = th.querySelector('.botao-filtro-coluna');
+                        botao?.classList.toggle('ativo', filtros.has(coluna));
+                    });
+                }
+
+                function posicionarMenu(menu, botao) {
+                    const margem = 8;
+                    const rect = botao.getBoundingClientRect();
+                    menu.style.visibility = 'hidden';
+                    document.body.appendChild(menu);
+                    const largura = menu.offsetWidth;
+                    const altura = menu.offsetHeight;
+                    let left = rect.left;
+                    let top = rect.bottom + 5;
+                    if (left + largura > window.innerWidth - margem) left = window.innerWidth - largura - margem;
+                    if (left < margem) left = margem;
+                    if (top + altura > window.innerHeight - margem) top = Math.max(margem, rect.top - altura - 5);
+                    menu.style.left = `${left}px`;
+                    menu.style.top = `${top}px`;
+                    menu.style.visibility = 'visible';
+                }
+
+                function abrirMenu(coluna, botao) {
+                    fecharMenu();
+
+                    const valores = [...new Set(linhas.map(linha => textoCelula(linha, coluna)))].sort((a, b) =>
+                        a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })
+                    );
+                    const selecionadosAtuais = filtros.has(coluna)
+                        ? new Set(filtros.get(coluna))
+                        : new Set(valores);
+
+                    const menu = document.createElement('div');
+                    menu.className = 'menu-filtro-excel';
+                    menu.innerHTML = `
+                        <input type="text" class="filtro-pesquisa-coluna" placeholder="🔎 Pesquisar..." autocomplete="off">
+                        <div class="filtro-acoes-coluna">
+                            <label><input type="checkbox" class="filtro-selecionar-todos"> <span>Selecionar tudo</span></label>
+                            <button type="button" class="limpar-filtro-coluna">Limpar filtro</button>
+                        </div>
+                        <div class="lista-valores-filtro"></div>
+                    `;
+                    document.body.appendChild(menu);
+                    menuAberto = menu;
+
+                    const pesquisa = menu.querySelector('.filtro-pesquisa-coluna');
+                    const selecionarTodos = menu.querySelector('.filtro-selecionar-todos');
+                    const lista = menu.querySelector('.lista-valores-filtro');
+
+                    function atualizarCheckboxGeral() {
+                        const termo = pesquisa.value.trim().toLocaleLowerCase('pt-BR');
+                        const visiveis = valores.filter(v => v.toLocaleLowerCase('pt-BR').includes(termo));
+                        const qtdSelecionada = visiveis.filter(v => selecionadosAtuais.has(v)).length;
+                        selecionarTodos.checked = visiveis.length > 0 && qtdSelecionada === visiveis.length;
+                        selecionarTodos.indeterminate = qtdSelecionada > 0 && qtdSelecionada < visiveis.length;
+                    }
+
+                    function renderValores() {
+                        const termo = pesquisa.value.trim().toLocaleLowerCase('pt-BR');
+                        const filtrados = valores.filter(v => v.toLocaleLowerCase('pt-BR').includes(termo));
+                        lista.innerHTML = '';
+
+                        if (!filtrados.length) {
+                            lista.innerHTML = '<div class="sem-resultados-filtro">Nenhum resultado.</div>';
+                            atualizarCheckboxGeral();
+                            return;
+                        }
+
+                        filtrados.forEach(valor => {
+                            const label = document.createElement('label');
+                            label.className = 'valor-filtro-coluna';
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.checked = selecionadosAtuais.has(valor);
+                            checkbox.addEventListener('change', () => {
+                                if (checkbox.checked) selecionadosAtuais.add(valor);
+                                else selecionadosAtuais.delete(valor);
+                                if (selecionadosAtuais.size === valores.length) filtros.delete(coluna);
+                                else filtros.set(coluna, new Set(selecionadosAtuais));
+                                aplicarFiltros();
+                                atualizarCheckboxGeral();
+                            });
+                            const texto = document.createElement('span');
+                            texto.textContent = valor || '(vazio)';
+                            label.appendChild(checkbox);
+                            label.appendChild(texto);
+                            lista.appendChild(label);
+                        });
+                        atualizarCheckboxGeral();
+                    }
+
+                    selecionarTodos.addEventListener('change', () => {
+                        const termo = pesquisa.value.trim().toLocaleLowerCase('pt-BR');
+                        valores.filter(v => v.toLocaleLowerCase('pt-BR').includes(termo)).forEach(valor => {
+                            if (selecionarTodos.checked) selecionadosAtuais.add(valor);
+                            else selecionadosAtuais.delete(valor);
+                        });
+                        if (selecionadosAtuais.size === valores.length) filtros.delete(coluna);
+                        else filtros.set(coluna, new Set(selecionadosAtuais));
+                        aplicarFiltros();
+                        renderValores();
+                    });
+
+                    menu.querySelector('.limpar-filtro-coluna').addEventListener('click', () => {
+                        filtros.delete(coluna);
+                        aplicarFiltros();
+                        fecharMenu();
+                    });
+
+                    pesquisa.addEventListener('input', renderValores);
+                    renderValores();
+                    posicionarMenu(menu, botao);
+                    pesquisa.focus();
+                }
+
+                cabecalhos.forEach(th => {
+                    const botao = th.querySelector('.botao-filtro-coluna');
+                    const coluna = Number(th.dataset.coluna);
+                    botao?.addEventListener('click', event => {
+                        event.stopPropagation();
+                        if (menuAberto) fecharMenu();
+                        abrirMenu(coluna, botao);
+                    });
+                });
+
+                document.addEventListener('click', event => {
+                    if (menuAberto && !menuAberto.contains(event.target) && !event.target.closest('.botao-filtro-coluna')) {
+                        fecharMenu();
+                    }
+                });
+
+                window.addEventListener('resize', fecharMenu);
+                window.addEventListener('scroll', fecharMenu, true);
+            });
+        })();
+    </script>
+</body>
 
 </html>
