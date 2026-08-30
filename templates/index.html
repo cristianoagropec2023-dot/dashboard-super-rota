@@ -42,6 +42,21 @@
             gap: 20px;
         }
 
+        .logo-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-radius: 8px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .logo-link:hover {
+            opacity: 0.88;
+            transform: scale(1.02);
+        }
+
         .logo-fazenda {
             width: 70px;
             height: 70px;
@@ -242,6 +257,7 @@
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
+            letter-spacing: 0.1px;
             margin-bottom: 12px;
         }
 
@@ -640,11 +656,13 @@
 
     <div class="cabecalho">
 
-        <img
-            src="{{ url_for('static', filename='logo_fazenda.png') }}"
-            alt="Logo da Fazenda"
-            class="logo-fazenda"
-        >
+        <a href="/" class="logo-link" title="Voltar para o início" aria-label="Voltar para o início">
+            <img
+                src="{{ url_for('static', filename='logo_fazenda.png') }}"
+                alt="Logo da Fazenda"
+                class="logo-fazenda"
+            >
+        </a>
 
         <div class="cabecalho-conteudo">
 
@@ -1121,7 +1139,7 @@
         <div class="card card-gravidade-leve card-filtro {% if filtros.gravidade == "LEVE" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'LEVE')" title="Filtrar ocorrências leves">
 
             <div class="card-title">
-                Ocorrências Leves
+                OCORRÊNCIAS LEVES — 0–5 KM/H
             </div>
 
             <div class="card-number">
@@ -1138,7 +1156,7 @@
         <div class="card card-gravidade-media card-filtro {% if filtros.gravidade == "MÉDIA" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'MÉDIA')" title="Filtrar ocorrências médias">
 
             <div class="card-title">
-                Ocorrências Médias
+                OCORRÊNCIAS MÉDIAS — 6–10 KM/H
             </div>
 
             <div class="card-number">
@@ -1156,7 +1174,7 @@
         <div class="card card-gravidade-grave card-filtro {% if filtros.gravidade == "GRAVE" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'GRAVE')" title="Filtrar ocorrências graves">
 
             <div class="card-title">
-                Ocorrências Graves
+                OCORRÊNCIAS GRAVES — 11–20 KM/H
             </div>
 
             <div class="card-number">
@@ -1174,7 +1192,7 @@
         <div class="card card-gravidade-gravissima card-filtro {% if filtros.gravidade == "GRAVÍSSIMA" %}card-ativo{% endif %}" onclick="aplicarFiltro('gravidade', 'GRAVÍSSIMA')" title="Filtrar ocorrências gravíssimas">
 
             <div class="card-title">
-                Ocorrências Gravíssimas
+                OCORRÊNCIAS GRAVÍSSIMAS — ACIMA DE 20 KM/H
             </div>
 
             <div class="card-number">
