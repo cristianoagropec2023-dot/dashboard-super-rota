@@ -31,3 +31,11 @@ ROTAS DE ACESSO
 /logout -> encerra a sessão
 /       -> dashboard protegido
 /exportar/* -> exportações protegidas
+
+ATUALIZACAO RAPIDA
+Para publicar uma alteracao no GitHub e disparar o deploy automatico do Render:
+1. Teste o dashboard localmente com: python app.py
+2. Feche o servidor quando terminar.
+3. Clique duas vezes em: ATUALIZAR_RENDER.bat
+4. O arquivo prepara o commit e envia para origin/main.
+5. O Render devera iniciar o deploy automaticamente, se o servico estiver conectado ao repositorio.
